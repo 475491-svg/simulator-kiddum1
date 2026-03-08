@@ -1,0 +1,3168 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>סימולטור תקציב קידום עובדים</title>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=Assistant:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2B4C7E;
+            --primary-light: #567BA6;
+            --primary-dark: #1A2F4F;
+            --accent: #D4AF37;
+            --success: #2D8659;
+            --warning: #E67E22;
+            --danger: #C0392B;
+            --bg: #F8F9FA;
+            --card-bg: #FFFFFF;
+            --text: #2C3E50;
+            --text-light: #7F8C8D;
+            --border: #E0E4E8;
+            --shadow: rgba(43, 76, 126, 0.08);
+            --shadow-hover: rgba(43, 76, 126, 0.15);
+        }
+
+        body {
+            font-family: 'Assistant', 'Heebo', sans-serif;
+            background: linear-gradient(135deg, #F8F9FA 0%, #E8EDF2 100%);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .header h1 {
+            font-family: 'Heebo', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            position: relative;
+            z-index: 1;
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 2rem 3rem;
+            background: white;
+            border-bottom: 2px solid var(--border);
+            position: relative;
+        }
+
+        .progress-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step::before {
+            content: '';
+            position: absolute;
+            top: 25px;
+            right: 50%;
+            width: 100%;
+            height: 3px;
+            background: var(--border);
+            z-index: 0;
+        }
+
+        .progress-step:first-child::before {
+            display: none;
+        }
+
+        .progress-step.active::before,
+        .progress-step.completed::before {
+            background: var(--primary);
+        }
+
+        .step-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--bg);
+            border: 3px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 0.75rem;
+            font-weight: 700;
+            font-size: 1.2rem;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.active .step-circle {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            transform: scale(1.1);
+            box-shadow: 0 4px 15px var(--shadow-hover);
+        }
+
+        .progress-step.completed .step-circle {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .progress-step.completed .step-circle::after {
+            content: '✓';
+            font-size: 1.5rem;
+        }
+
+        .step-label {
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        .progress-step.active .step-label {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .content {
+            padding: 3rem;
+        }
+
+        .step-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 5px;
+            height: 35px;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-label .required {
+            color: var(--danger);
+            font-size: 1.2rem;
+        }
+
+        .form-input,
+        .form-select {
+            padding: 0.9rem 1.2rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            font-size: 1rem;
+            font-family: 'Assistant', sans-serif;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-input:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(43, 76, 126, 0.1);
+        }
+
+        .form-input:disabled {
+            background: var(--bg);
+            cursor: not-allowed;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+            border-right: 4px solid var(--primary);
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            color: var(--primary-dark);
+        }
+
+        .info-box h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .info-box ul {
+            margin-right: 1.5rem;
+        }
+
+        .info-box li {
+            margin-bottom: 0.5rem;
+        }
+
+        .criteria-card {
+            background: var(--bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            border: 2px solid var(--border);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .criteria-card:hover {
+            border-color: var(--primary-light);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        .criteria-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .criteria-number {
+            background: var(--primary);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .remove-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .remove-btn:hover {
+            background: #A93226;
+            transform: scale(1.05);
+        }
+
+        .weight-display {
+            font-size: 2rem;
+            font-weight: 700;
+            text-align: center;
+            padding: 1.5rem;
+            background: var(--bg);
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            border: 3px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .weight-display.valid {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        .weight-display.invalid {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Assistant', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px var(--shadow-hover);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #27AE60;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: space-between;
+        }
+
+        .add-btn {
+            background: var(--accent);
+            color: var(--primary-dark);
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .add-btn:hover:not(:disabled) {
+            background: #C19B2B;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+        }
+
+        .add-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .employee-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-top: 1.5rem;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .employee-table thead {
+            background: var(--primary);
+            color: white;
+        }
+
+        .employee-table th,
+        .employee-table td {
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .employee-table th {
+            font-weight: 700;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .employee-table tbody tr {
+            transition: all 0.3s ease;
+        }
+
+        .employee-table tbody tr:hover {
+            background: var(--bg);
+        }
+
+        .employee-table input {
+            width: 70px;
+            padding: 0.5rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .employee-table input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(43, 76, 126, 0.1);
+        }
+
+        #inputTable {
+            border: 3px solid var(--primary-light);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+
+        #inputTable thead {
+            background: linear-gradient(135deg, var(--primary-light) 0%, var(--primary) 100%);
+        }
+
+        #inputTable tbody tr {
+            background: linear-gradient(135deg, rgba(43, 76, 126, 0.03) 0%, rgba(86, 123, 166, 0.03) 100%);
+        }
+
+        #inputTable input::placeholder {
+            color: var(--text-light);
+            opacity: 0.6;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.3rem;
+            padding: 0.25rem 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.2);
+        }
+
+        .upload-area {
+            border: 3px dashed var(--border);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            background: var(--bg);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin: 1.5rem 0;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: rgba(43, 76, 126, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(43, 76, 126, 0.1);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: var(--primary-light);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--card-bg) 0%, var(--bg) 100%);
+            padding: 1.5rem;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px var(--shadow);
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: slideIn 0.4s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-error {
+            background: #FADBD8;
+            color: var(--danger);
+            border-right: 4px solid var(--danger);
+        }
+
+        .alert-warning {
+            background: #FCF3CF;
+            color: #B8860B;
+            border-right: 4px solid var(--warning);
+        }
+
+        .alert-success {
+            background: #D5F4E6;
+            color: var(--success);
+            border-right: 4px solid var(--success);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            background: var(--bg);
+            padding: 0.5rem;
+            border-radius: 12px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: var(--text-light);
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px var(--shadow);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.3s ease;
+        }
+
+        .summary-item:hover {
+            background: var(--bg);
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .summary-value {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+                font-family: Arial, 'Arial Hebrew', sans-serif;
+                direction: rtl;
+            }
+            .progress-bar,
+            .btn-group,
+            .no-print,
+            header,
+            .step-indicator,
+            .nav-buttons,
+            .export-options,
+            .alert {
+                display: none !important;
+            }
+            .step-content {
+                display: block !important;
+            }
+            .card {
+                box-shadow: none !important;
+                border: 1px solid #ddd;
+                break-inside: avoid;
+            }
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 9pt;
+            }
+            th, td {
+                border: 1px solid #ccc;
+                padding: 4px 6px;
+            }
+            th {
+                background: #2b4c7e !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .results-summary {
+                break-inside: avoid;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 15mm;
+            }
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-light);
+        }
+
+        .spinner {
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+            color: var(--primary-light);
+            margin-right: 0.5rem;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.5rem 1rem;
+            background: var(--primary-dark);
+            color: white;
+            border-radius: 6px;
+            white-space: nowrap;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+
+        .custom-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+        }
+
+        .custom-checkbox:hover {
+            background: var(--bg);
+        }
+
+        .custom-checkbox input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Branding bar -->
+    <div style="width:100%; background:#fff; border-bottom: 1px solid #e0e7ef; padding: 0.55rem 2rem; display:flex; align-items:center; justify-content:flex-end; position:sticky; top:0; z-index:1000; box-shadow: 0 1px 4px rgba(43,76,126,0.07);">
+        <span style="font-family:'Heebo',sans-serif; font-size:0.95rem; color:#2b4c7e; font-weight:600;">
+            צביה וינברג, רו"ח
+        </span>
+        <span style="margin: 0 0.6rem; color:#c0cad8;">|</span>
+        <a href="mailto:simulatorta@gmail.com" style="font-family:'Heebo',sans-serif; font-size:0.85rem; color:#7a8fa6; text-decoration:none;">simulatorta@gmail.com</a>
+    </div>
+    <div class="container">
+        <div class="header">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1;">
+                    <h1>סימולטור תקציב קידום עובדים</h1>
+                    <p>מערכת מתקדמת לחישוב וניהול תקציב קידום בארגון</p>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button onclick="saveProject()" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.3rem;" title="שמור את כל הנתונים לקובץ">
+                        💾 <span style="display: none; @media(min-width: 768px) { display: inline; }">שמור</span>
+                    </button>
+                    <button onclick="document.getElementById('headerLoadProjectInput').click()" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.3rem;" title="טען פרויקט קיים">
+                        📂 <span style="display: none; @media(min-width: 768px) { display: inline; }">טען</span>
+                    </button>
+                    <input type="file" id="headerLoadProjectInput" accept=".json" style="display: none;" onchange="loadProject(event)">
+                </div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-step active" data-step="1">
+                <div class="step-circle">1</div>
+                <div class="step-label">הגדרות בסיס</div>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="step-circle">2</div>
+                <div class="step-label">הגדרת מדדים</div>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="step-circle">3</div>
+                <div class="step-label">הזנת עובדים</div>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="step-circle">4</div>
+                <div class="step-label">תוצאות</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Step 1: Base Settings -->
+            <div class="step-content active" data-step="1">
+                <h2 class="section-title">שלב 1: הגדרות בסיס</h2>
+                
+                <!-- Proposal disclaimer banner -->
+                <div style="background: linear-gradient(135deg, #e8f4ee 0%, #d0ead8 100%); border: 2px solid #1a7a4a; border-radius: 10px; padding: 1.1rem 1.5rem; margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+                    <span style="font-size: 1.4rem; line-height: 1.4;">💡</span>
+                    <p style="margin: 0; font-size: 0.97rem; line-height: 1.7; color: #1a3558;">
+                        <strong>בהמשך לסעיפים 4.5–4.7 לחוזר מנכ"ל שכ. 2021-3055 מיום 29.6.2021</strong> (שכר ותנאי עבודה בחברות עירוניות): הסימולטור מציג הצעת חלוקה הנגזרת מסעיפים אלו, המתחשבת בניקוד המדדים ובתקציב הכולל ומחלקת לכל עובד את חלקו ביחס לציונו ולשכרו.
+                        <strong>התאגיד רשאי לאמץ שיטת חלוקה אחרת, כל עוד היא עומדת בהוראות החוזר, בתקציב הכולל ובתקרת הקידום לעובד.</strong>
+                    </p>
+                </div>
+                
+                <!-- General Instructions -->
+                <div class="info-box" style="background: linear-gradient(135deg, #D5F4E6 0%, #A8E6CF 100%); border-right: 4px solid #2D8659; margin-bottom: 2rem; padding: 1.5rem;">
+                    <h3 style="font-size: 1.3rem; color: #1B5E20; margin-bottom: 1rem; font-weight: 700;">🎯 מהות הסימולטור ואיך עובדים איתו</h3>
+                    <ol style="line-height: 2; color: #2C3E50; font-size: 1rem; margin: 0; padding-right: 1.5rem;">
+                        <li><strong>מטרה:</strong> הסימולטור מחשב באופן אוטומטי את תקציב הקידום לכל עובד בהתאם למדדי הערכה שנבחרו ולתקציב הכולל המאושר</li>
+                        <li><strong>תהליך:</strong> 4 שלבים פשוטים - הזנת נתוני תקציב ← בחירת מדדי הערכה ← הזנת עובדים וציונים ← קבלת תוצאות מפורטות</li>
+                        <li><strong>גמישות:</strong> ניתן להזין נתונים ידנית או להעלות קובץ Excel, לבחור מדדים מוכנים או להוסיף משלכם</li>
+                        <li><strong>דיוק:</strong> החישוב מבוסס על נוסחאות משרד האוצר ומתחשב בתקרות, מגבלות תקציב והפחתות יחסיות</li>
+                        <li><strong>תוצאות:</strong> בסיום תקבלו דוחות מפורטים לייצוא ל-PDF ו-Excel, כולל פירוט לכל עובד ומצב תקציבי מלא</li>
+                        <li><strong>💾 שמירה:</strong> ניתן לשמור את כל הנתונים לקובץ בכל שלב (כפתור "שמור" בראש העמוד) ולטעון אותם בפעם הבאה - לא תצטרכו למלא הכל מחדש!</li>
+                    </ol>
+                </div>
+                
+                <!-- Dynamic Title -->
+                <div id="dynamicTitle" class="info-box" style="background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%); border-right-color: #2B4C7E; margin-bottom: 2rem;">
+                    <h3 style="font-size: 1.3rem; color: var(--primary); text-align: center; font-weight: 700;">
+                        תקציב קידום לשנת <span id="budgetYearDisplay" style="color: var(--accent);">____</span> בגין עמידה ביעדים לשנת <span id="performanceYearDisplay" style="color: var(--accent);">____</span>
+                    </h3>
+                </div>
+
+                <!-- Organization Details -->
+                <div style="background: #FFF9E6; border: 2px solid #D4AF37; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0;">
+                    <h3 style="color: #2B4C7E; margin-bottom: 1rem; font-size: 1.2rem;">🏢 פרטי התאגיד</h3>
+                    <p style="color: #7F8C8D; font-size: 0.95rem; margin-bottom: 1rem;">פרטים אלו יופיעו בכל הדוחות המיוצאים</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="tooltip" data-tooltip="שם הרשות המקומית או החברה">ℹ️</span>
+                                שם התאגיד
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" id="orgName" placeholder="הזן שם תאגיד">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="tooltip" data-tooltip="מספר חברה פרטית של התאגיד">ℹ️</span>
+                                ח.פ.
+                                <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" id="orgNumber" placeholder="הזן ח.פ.">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                <span class="tooltip" data-tooltip="שנת התקציב לה מיועד חישוב הקידום">ℹ️</span>
+                                שנת תקציב
+                                <span class="required">*</span>
+                            </label>
+                            <input type="number" class="form-input" id="budgetYear" placeholder="לדוגמה: 2025" min="2020" max="2100">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <h3>✅ קריטריונים לזכאות לתקציב קידום:</h3>
+                    <ul>
+                        <li>עובד לא בכיר (סעיף 4.1 בחוזר מנכ"ל)</li>
+                        <li>ותק מעל חצי שנה (סעיף 4.8 בחוזר מנכ"ל)</li>
+                        <li>העובד לא עבר לקבלת משכורת בטווח שכר גבוה יותר (סעיף 4.12 בחוזר מנכ"ל)</li>
+                    </ul>
+                </div>
+
+                <h3 style="color: var(--primary); margin: 2rem 0 1rem 0; font-size: 1.2rem;">💰 נתוני שכר ותקציב</h3>
+
+                <div class="info-box" style="background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%); border-right-color: #FF9800; margin-bottom: 1.5rem;">
+                    <p style="margin: 0; font-size: 1rem; color: #2C3E50;">
+                        ⚠️ <strong>חשוב:</strong> יש להזין נתוני שכר של שנת <strong id="salaryYearDisplay" style="color: #E65100;">____</strong> (ינואר–דצמבר), עבור כלל העובדים הכלולים בתקציב הקידום. אין לבצע התאמות לפי חודשי עבודה, גם אם עובד עבד רק בחלק מהשנה.
+                    </p>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="השכר הפנסיוני הבסיסי בלבד (ללא שעות נוספות וכוננויות). סכום ינואר–דצמבר לכלל העובדים הזכאים. זהו הערך A בנוסחה.">ℹ️</span>
+                            סך שכר ערך שעה – <span class="salary-year-label">____</span> (₪)
+                            <span class="required">*</span>
+                        </label>
+                        <input type="number" class="form-input" id="salaryA" placeholder="סכום שנתי מצטבר לכלל העובדים (ינואר–דצמבר)" min="0" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="תשלומי שעות נוספות בלבד (ללא כוננויות). סכום ינואר–דצמבר לכלל העובדים הזכאים. זהו הערך B בנוסחה.">ℹ️</span>
+                            סך תשלום עבודה נוספת – <span class="salary-year-label">____</span> (₪)
+                            <span class="required">*</span>
+                        </label>
+                        <input type="number" class="form-input" id="salaryB" placeholder="סכום שנתי מצטבר לכלל העובדים (ינואר–דצמבר)" min="0" step="0.01" oninput="updateCalculations()">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="כוננויות בלבד – ללא קריאות פתע (חברות עירוניות אינן זכאיות לקריאות פתע). סכום ינואר–דצמבר לכלל העובדים הזכאים.">ℹ️</span>
+                            סך תשלום כוננויות – <span class="salary-year-label">____</span> (₪)
+                            <span class="required">*</span>
+                        </label>
+                        <input type="number" class="form-input" id="salaryC" placeholder="סכום שנתי מצטבר לכלל העובדים (ינואר–דצמבר), כוננויות בלבד" min="0" step="0.01" oninput="updateCalculations()">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="שיעור תקציב הקידום שאישר הממונה על השכר לאותה שנה. הדירקטוריון רשאי לקבוע שיעור נמוך יותר בלבד.">ℹ️</span>
+                            שיעור תקציב הקידום – כפי שאושר ע"י האוצר (%)
+                            <span class="required">*</span>
+                        </label>
+                        <input type="number" class="form-input" id="budgetRate" placeholder="הזן אחוז" min="0" max="100" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="סך השכר השנתי: A (ערך שעה) + B (עבודה נוספת) + C (כוננויות). הבסיס לחישוב תקציב הקידום.">ℹ️</span>
+                            סך הכל תקציב הבסיס A+B+C (₪)
+                        </label>
+                        <input type="text" class="form-input" id="totalBaseBudget" disabled value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="תקציב הקידום השנתי לחלוקה בין העובדים. מחושב לפי נוסחת האוצר: (A+B+C) × E.">ℹ️</span>
+                            תקציב קידום שנתי (₪)
+                        </label>
+                        <input type="text" class="form-input" id="annualBudget" disabled value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="תקציב הקידום השנתי חלקי 12. סכום הקידומים החודשיים של כלל העובדים לא יעלה על תקרה זו.">ℹ️</span>
+                            תקציב קידום חודשי (₪)
+                        </label>
+                        <input type="text" class="form-input" id="monthlyBudget" disabled value="0" style="background: #FFF9E6; font-weight: 600; border: 2px solid var(--accent);">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="מקדם C = (A+B+C) ÷ A. יחס סך השכר לשכר ערך שעה. משמש לחישוב מקדם E.">ℹ️</span>
+                            מקדם C (היחס)
+                        </label>
+                        <input type="text" class="form-input" id="ratio" disabled value="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">
+                            <span class="tooltip" data-tooltip="מקדם E = D ÷ C. מקדם ההפחתה המבטיח שתקציב הקידום יחושב על בסיס שכר ערך שעה בלבד.">ℹ️</span>
+                            מקדם E (מקדם ההפחתה)</label>
+                        <input type="text" class="form-input" id="reductionFactor" disabled value="0">
+                    </div>
+                </div>
+
+                <!-- Employee Cap Section - AT THE END -->
+                <h3 style="color: var(--primary); margin: 2rem 0 1rem 0; font-size: 1.2rem;">📊 תקרת קידום שנתית לעובד</h3>
+                
+                <div class="info-box" style="background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%); border-right-color: #FF9800;">
+                    <p style="margin: 0.5rem 0; line-height: 1.8; color: #2C3E50;">
+                        <strong>ברירת מחדל:</strong> תקרת הקידום השנתית לעובד היא עד <strong style="color: #E65100;">5% משכרו לערך שעה</strong>.<br>
+                        <strong>אישור חריג:</strong> בשנים מסוימות משרד האוצר מאשר באופן חריג תקרת שיעור גבוה יותר לעובד.
+                    </p>
+                    
+                    <div style="margin-top: 1rem; padding: 1rem; background: white; border-radius: 8px;">
+                        <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; font-size: 1.05rem; font-weight: 600;">
+                            <input type="checkbox" id="employeeCapException" onchange="toggleEmployeeCapField()" style="width: 20px; height: 20px; cursor: pointer;">
+                            <span>קיים אישור חריג מהממונה על השכר לשיעור תקרת קידום שונה</span>
+                        </label>
+                        
+                        <div id="employeeCapField" style="display: none; margin-top: 1rem;">
+                            <label class="form-label">
+                                <span class="tooltip" data-tooltip="תקרת קידום לעובד בודד: עד 5% משכרו (סעיף 4.2). אם יש אישור חריג בכתב מהממונה על השכר – ניתן לסמן ולהזין את השיעור המאושר.">ℹ️</span>
+                                שיעור תקרת קידום מאושר לעובד (%)
+                                <span class="required">*</span>
+                            </label>
+                            <input type="number" class="form-input" id="employeeCapRate" placeholder="לדוגמה: 6" min="0" max="100" step="0.1" value="5" onchange="updateEmployeeCap()">
+                        </div>
+                        
+                        <div style="margin-top: 1rem; padding: 0.75rem; background: #E3F2FD; border-radius: 6px;">
+                            <strong style="color: var(--primary);">תקרת קידום נוכחית לעובד: <span id="currentCapDisplay" style="color: var(--accent);">5%</span></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <div></div>
+                    <button class="btn btn-primary" onclick="nextStep()" id="step1Next">המשך לשלב הבא ←</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Criteria Setup -->
+            <div class="step-content" data-step="2">
+                <h2 class="section-title">הגדרת מדדי הערכה</h2>
+
+                <div class="info-box">
+                    <h3>הנחיות למדדי הערכה:</h3>
+                    <ul>
+                        <li>יש להגדיר לפחות מדד אחד להערכת עובדים</li>
+                        <li>סך כל המשקולות חייב להסתכם ל-100%</li>
+                        <li>טווח הציונים לכל מדד: 0-5</li>
+                        <li>ניתן לבחור מדד מהרשימה או להוסיף מדד מותאם אישית</li>
+                    </ul>
+                </div>
+
+                <div class="weight-display" id="weightDisplay" style="display: none;">
+                    סך משקולות: <span>0</span>%
+                </div>
+
+                <div id="criteriaContainer"></div>
+
+                <button class="add-btn" onclick="addCriteria()" id="addCriteriaBtn">
+                    ➕ הוסף מדד נוסף
+                </button>
+
+                <!-- Fixed Weight Display - Always visible at bottom -->
+                <div style="position: sticky; bottom: 0; background: white; padding: 1rem; border-top: 3px solid var(--primary); box-shadow: 0 -4px 12px rgba(0,0,0,0.1); z-index: 10; margin: 2rem -2rem 1rem -2rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; max-width: 800px; margin: 0 auto;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <strong style="color: var(--primary);">סך משקולות:</strong>
+                                <strong id="totalWeight" style="color: var(--accent); font-size: 1.2rem;">0%</strong>
+                            </div>
+                            <div style="background: #E0E0E0; height: 20px; border-radius: 10px; overflow: hidden; position: relative;">
+                                <div id="weightProgress" style="background: linear-gradient(90deg, #FF6B6B 0%, #FFD93D 50%, #6BCF7F 100%); height: 100%; width: 0%; transition: all 0.3s ease; border-radius: 10px;"></div>
+                                <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                                    <span id="weightProgressText">0%</span>
+                                </div>
+                            </div>
+                            <div style="margin-top: 0.3rem; font-size: 0.85rem; color: var(--text-light); text-align: center;" id="weightStatus">
+                                יש להגיע ל-100%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="prevStep()">→ חזור</button>
+                    <button class="btn btn-primary" onclick="nextStep()" id="step2Next" disabled>המשך לשלב הבא ←</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Employee Data -->
+            <div class="step-content" data-step="3">
+                <h2 class="section-title">הזנת נתוני עובדים</h2>
+
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab('manual')">הזנה ידנית</button>
+                    <button class="tab-btn" onclick="switchTab('upload')">העלאת קובץ Excel</button>
+                </div>
+
+                <div class="tab-content active" id="manualTab">
+                    <div class="info-box" style="background: linear-gradient(135deg, #FFF3CD 0%, #FCE4A6 100%); border-right-color: var(--accent);">
+                        <h3>💡 הנחיות להזנה:</h3>
+                        <ul>
+                            <li>מלא את כל השדות בשורה ולחץ על כפתור "הוסף עובד"</li>
+                            <li>ציוני המדדים בטווח 0-5</li>
+                            <li>ניתן להוסיף עובדים נוספים ברצף</li>
+                            <li><strong>לתאגידים עם יותר מ-20 עובדים</strong> – מומלץ לעבור ללשונית "העלאת Excel" לחיסכון בזמן</li>
+                        </ul>
+                    </div>
+
+                    <div style="overflow-x: auto; margin-bottom: 1.5rem;">
+                        <table class="employee-table" id="inputTable" style="background: white;">
+                            <thead>
+                                <tr>
+                                    <th style="width:140px; min-width:140px; white-space:nowrap;">שם עובד <span class="required">*</span></th>
+                                    <th style="width:110px; min-width:110px; white-space:nowrap;">מספר זהות <span class="required">*</span></th>
+                                    <th style="width:130px; min-width:130px;">משכורת פנסיונית חודשית (₪) <span class="tooltip" data-tooltip="השכר הפנסיוני החודשי של העובד בלבד – שכר ערך שעה, ללא שעות נוספות וכוננויות.">ℹ️</span> <span class="required">*</span></th>
+                                    <!-- criteria headers injected here by renderEmployeeScores -->
+                                    <th style="min-width: 100px;">פעולה</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr id="inputRow">
+                                    <td><input type="text" class="form-input" id="employeeName" placeholder="שם מלא" style="margin: 0;"></td>
+                                    <td><input type="text" class="form-input" id="employeeId" placeholder="ת.ז." style="margin: 0;"></td>
+                                    <td><input type="number" class="form-input" id="employeeSalary" placeholder="שכר פנסיוני (ללא עבודה נוספת)" min="0" step="0.01" style="margin: 0;"></td>
+                                    <!-- criteria score tds injected here by renderEmployeeScores -->
+                                    <td id="inputActionCell">
+                                        <button class="add-btn" onclick="addEmployee()" style="width: 100%; margin: 0;">
+                                            ➕ הוסף
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="uploadTab">
+                    <div class="info-box" style="background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); border-right-color: #f59e0b; margin-bottom: 1rem;">
+                        <p style="margin:0; font-size: 1rem;">
+                            💡 <strong>לתאגידים עם יותר מ-20 עובדים – מומלץ להשתמש בהעלאת קובץ Excel</strong> במקום הזנה ידנית, לחיסכון משמעותי בזמן.
+                        </p>
+                    </div>
+                    <div class="info-box" style="background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%); border-right-color: var(--success);">
+                        <h3>📋 2 דרכים להעלות Excel:</h3>
+                        
+                        <div style="background: white; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                            <h4 style="color: var(--primary); margin-bottom: 0.5rem;">✅ דרך 1: ללא ציונים</h4>
+                            <p style="margin: 0.3rem 0;"><strong>3 עמודות:</strong> שם עובד | מספר זהות | משכורת</p>
+                            <p style="margin: 0.3rem 0; font-size: 0.9rem; color: #E67E22;">⚠️ תצטרך למלא ציונים ידנית בטבלה</p>
+                        </div>
+                        
+                        <div style="background: white; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                            <h4 style="color: var(--primary); margin-bottom: 0.5rem;">⭐ דרך 2: עם ציונים (מומלץ)</h4>
+                            <p style="margin: 0.3rem 0;"><strong>3 עמודות + עמודת ציון לכל מדד</strong></p>
+                            <p style="margin: 0.3rem 0; color: #2D8659;"><strong>חשוב:</strong> שם העמודה = שם המדד בדיוק!</p>
+                            <p style="margin: 0.3rem 0; font-size: 0.9rem;">דוגמה: אם המדד "איכות עבודה", העמודה חייבת להיות "איכות עבודה"</p>
+                        </div>
+                        
+                        <p style="margin: 0.5rem 0; text-align: center;">
+                            <strong>💡 עצה:</strong> הורד את התבנית למטה - היא כוללת את כל המדדים שהגדרת!
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem; text-align: center;">
+                        <button class="btn btn-secondary" onclick="downloadExcelTemplate()" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                            📥 הורד תבנית Excel עם המדדים
+                        </button>
+                    </div>
+
+                    <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📁</div>
+                        <h3>גרור קובץ Excel לכאן או לחץ לבחירה</h3>
+                        <p style="color: var(--text-light); margin-top: 0.5rem;">
+                            תומך בקבצי .xlsx ו-.xls
+                        </p>
+                    </div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;" onchange="handleFileUpload(event)">
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <h3 style="color: var(--primary); margin-bottom: 1rem; font-size: 1.3rem;">
+                        רשימת עובדים שהוזנו: <span style="color: var(--accent);" id="employeeCount">0</span>
+                    </h3>
+                    
+                    <div class="info-box" style="background: linear-gradient(135deg, #FFF9E6 0%, #FFE9A6 100%); border-right-color: var(--accent); margin-bottom: 1rem;" id="editScoresInfo">
+                        <h3>💡 עריכת ציונים:</h3>
+                        <p style="margin: 0;">
+                            לחץ על תא בטבלה למטה לעריכה. הצבע משתנה לפי ציון (ירוק = גבוה, אדום = נמוך).
+                        </p>
+                    </div>
+                    
+                    <div style="overflow-x: auto;">
+                        <table class="employee-table" id="employeeTable">
+                            <thead>
+                                <tr>
+                                    <th style="min-width: 50px;">#</th>
+                                    <th style="min-width: 150px;">שם עובד</th>
+                                    <th style="min-width: 120px;">מספר זהות</th>
+                                    <th style="min-width: 120px;">משכורת (₪)</th>
+                                    <th id="scoresHeader" style="min-width: 120px;"></th>
+                                    <th style="min-width: 80px;">פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeeTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="prevStep()">→ חזור</button>
+                    <button class="btn btn-primary" onclick="nextStep()" id="step3Next">צפה בתוצאות ←</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Results -->
+            <div class="step-content" data-step="4">
+                <h2 class="section-title">תוצאות וסיכום</h2>
+
+                <div class="results-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">תקציב קידום שנתי</div>
+                        <div class="stat-value" id="totalBudgetAnnual">₪0</div>
+                    </div>
+                    <div class="stat-card" style="border: 3px solid var(--accent);">
+                        <div class="stat-label">תקציב קידום חודשי (תקרה)</div>
+                        <div class="stat-value" style="color: var(--accent);" id="totalBudgetMonthly">₪0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">תקציב ששימש בפועל (חודשי)</div>
+                        <div class="stat-value" id="totalBudgetUsed">₪0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">יתרת תקציב חודשי</div>
+                        <div class="stat-value" id="budgetRemaining">₪0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">מספר עובדים</div>
+                        <div class="stat-value" id="totalEmployees">0</div>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto; margin: 2rem 0;">
+                    <table class="employee-table" id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>שם עובד</th>
+                                <th>מספר זהות</th>
+                                <th>משכורת (₪)</th>
+                                <th id="resultsCriteriaHeaders"></th>
+                                <th>ציון משוקלל</th>
+                                <th>אחוז קידום ראשוני</th>
+                                <th>סכום קידום ראשוני (₪)</th>
+                                <th style="background: var(--success); color: white;">אחוז קידום סופי</th>
+                                <th style="background: var(--success); color: white;">סכום קידום סופי (₪)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="reductionInfo" style="margin-top:2rem;"></div>
+
+                <!-- Chart section -->
+                <div id="chartSection" style="display:none; background:white; border-radius:16px; padding:1.5rem 2rem; margin-top:2rem; box-shadow: 0 4px 20px rgba(43,76,126,0.08);">
+                    <h3 style="color:#2b4c7e; margin:0 0 0.3rem 0; font-size:1.1rem;">📊 התפלגות קידום עובדים</h3>
+                    <p style="color:#7a8fa6; font-size:0.82rem; margin:0 0 1.2rem 0;">אחוז קידום סופי לכל עובד | קו כתום = ממוצע הארגון</p>
+                    <canvas id="promotionChart" height="110"></canvas>
+                    <div style="display:flex; gap:1rem; margin-top:1.2rem;" id="chartStats"></div>
+                </div>
+
+                <!-- Bell curve chart -->
+                <div id="bellSection" style="display:none; background:white; border-radius:16px; padding:1.5rem 2rem; margin-top:1.5rem; box-shadow: 0 4px 20px rgba(43,76,126,0.08);">
+                    <h3 style="color:#2b4c7e; margin:0 0 0.3rem 0; font-size:1.1rem;">🔔 התפלגות נורמלית – עקומת פעמון</h3>
+                    <p style="color:#7a8fa6; font-size:0.82rem; margin:0 0 1.2rem 0;">התפלגות אחוזי הקידום | עקומה צרה = ציונים מרוכזים, עקומה רחבה = פיזור גדול בין העובדים</p>
+                    <div style="display:flex; gap:2rem; align-items:center;">
+                        <div style="width:280px; flex-shrink:0;">
+                            <canvas id="bellChart" height="160" width="280"></canvas>
+                        </div>
+                        <div id="bellStats" style="display:flex; flex-direction:column; gap:0.8rem; flex:1;"></div>
+                    </div>
+                </div>
+
+                <div class="export-options no-print">
+                    <button class="btn btn-success" onclick="exportToPDF()">
+                        📄 ייצא ל-PDF
+                    </button>
+                    <button class="btn btn-success" onclick="exportToExcel()">
+                        📊 ייצא ל-Excel
+                    </button>
+                    <button class="btn btn-primary" onclick="saveProject()" style="background: #9C27B0;">
+                        💾 שמור פרויקט
+                    </button>
+                    <button class="btn btn-primary" onclick="document.getElementById('loadProjectInput').click()" style="background: #673AB7;">
+                        📂 טען פרויקט
+                    </button>
+                    <input type="file" id="loadProjectInput" accept=".json" style="display: none;" onchange="loadProject(event)">
+                    <button class="btn btn-secondary" onclick="resetSimulator()">
+                        🔄 התחל מחדש
+                    </button>
+                </div>
+
+                <div class="btn-group" style="margin-top: 2rem;">
+                    <button class="btn btn-secondary" onclick="prevStep()">→ חזור לעריכה</button>
+                    <div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data storage
+        let currentStep = 1;
+        let baseSettings = {};
+        let criteria = [];
+        let employees = [];
+        
+        // Toggle employee cap exception field
+        function toggleEmployeeCapField() {
+            const checkbox = document.getElementById('employeeCapException');
+            const field = document.getElementById('employeeCapField');
+            
+            if (checkbox.checked) {
+                field.style.display = 'block';
+                updateEmployeeCap();
+            } else {
+                field.style.display = 'none';
+                document.getElementById('employeeCapRate').value = 5;
+                document.getElementById('currentCapDisplay').textContent = '5%';
+                updateCalculations();
+            }
+        }
+        
+        // Update employee cap display and recalculate
+        function updateEmployeeCap() {
+            const capRate = parseFloat(document.getElementById('employeeCapRate').value) || 5;
+            document.getElementById('currentCapDisplay').textContent = capRate + '%';
+            updateCalculations();
+        }
+        
+        // Predefined criteria list - Expanded with specific professional criteria
+        // Categorized criteria for grouped dropdown
+        const criteriaCategories = [
+            {
+                label: '⭐ הערכת מנהל ישיר',
+                items: [
+                    'הערכת מנהל ישיר',
+                ]
+            },
+            {
+                label: 'א׳ – ביצועים מקצועיים',
+                items: [
+                    'איכות העבודה ורמת הביצוע',
+                    'עמידה בלוחות זמנים ויעדים',
+                    'ידע מקצועי ומומחיות בתחום',
+                    'דיוק ויסודיות בביצוע המשימות',
+                    'יכולת עמידה בעומסים ותנאי לחץ',
+                    'יעילות תפעולית וחיסכון במשאבים',
+                    'יכולת קבלת החלטות ושיפוט',
+                    'תרומה לארגון ויצירת ערך מוסף',
+                ]
+            },
+            {
+                label: 'ב׳ – תפקוד ארגוני',
+                items: [
+                    'נוכחות ואמינות',
+                    'עבודת צוות ושיתוף פעולה',
+                    'יוזמה וחשיבה יצירתית',
+                    'גמישות ויכולת הסתגלות לשינויים',
+                    'עמידה בנהלים ודרישות רגולטוריות',
+                    'יכולת עבודה עצמאית ואחריות אישית',
+                    'למידה והתפתחות מקצועית',
+                    'יכולת הובלת פרויקטים',
+                ]
+            },
+            {
+                label: 'ג׳ – שירות ויחסי אנוש',
+                items: [
+                    'שירות למנהלים ולקוחות פנימיים',
+                    'תקשורת בינאישית ויחסי אנוש',
+                    'תרומה לאקלים הארגוני',
+                    'שיתוף מידע ועזרה לעמיתים',
+                    'ייצוג הארגון בצורה ראויה',
+                    'מנהיגות והשפעה חיובית על הסביבה',
+                ]
+            }
+        ];
+        // Flat list for backward compat
+        const predefinedCriteria = criteriaCategories.flatMap(cat => cat.items);
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCriteria();
+            updateCalculations();
+            
+            // Add event listeners for base settings
+            ['orgName', 'orgNumber', 'budgetYear', 'salaryA', 'salaryB', 'salaryC', 'budgetRate'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', updateCalculations);
+                }
+            });
+
+            // Setup drag and drop
+            const uploadArea = document.getElementById('uploadArea');
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
+            });
+            uploadArea.addEventListener('drop', handleDrop, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFileUpload({ target: { files: files } });
+            }
+        }
+
+        // Update calculations
+        function updateCalculations() {
+            // Get all values
+            const orgName = document.getElementById('orgName')?.value.trim() || '';
+            const orgNumber = document.getElementById('orgNumber')?.value.trim() || '';
+            const budgetYear = parseInt(document.getElementById('budgetYear')?.value) || 0;
+            const salaryA = parseFloat(document.getElementById('salaryA').value) || 0;
+            const salaryB = parseFloat(document.getElementById('salaryB').value) || 0;
+            const salaryC = parseFloat(document.getElementById('salaryC')?.value) || 0;
+            const budgetRate = parseFloat(document.getElementById('budgetRate').value) || 0;
+            
+            // Get employee cap rate
+            const hasCapException = document.getElementById('employeeCapException')?.checked || false;
+            const employeeCapRate = hasCapException ? 
+                (parseFloat(document.getElementById('employeeCapRate')?.value) || 5) : 5;
+
+            // Calculate with MAXIMUM PRECISION - use all decimal places
+            const totalBaseBudget = salaryA + salaryB + salaryC; // A + B + C
+            const ratio = salaryA > 0 ? totalBaseBudget / salaryA : 0; // C_ratio = (A+B+C)/A
+            const reductionFactor = ratio > 0 ? (budgetRate / 100) / ratio : 0; // E = D/C_ratio
+            
+            // CORRECT FORMULA: Annual budget = (A + B + C) × E = D × A
+            const annualBudget = totalBaseBudget * reductionFactor;
+            const monthlyBudget = annualBudget / 12;
+
+            // Update display fields - show 2 decimal places for money
+            document.getElementById('totalBaseBudget').value = formatNumber(totalBaseBudget);
+            if (document.getElementById('annualBudget')) {
+                document.getElementById('annualBudget').value = formatNumber(annualBudget);
+            }
+            if (document.getElementById('monthlyBudget')) {
+                document.getElementById('monthlyBudget').value = formatNumber(monthlyBudget);
+            }
+            // Show 4 decimal places for ratio and factor (for precision)
+            document.getElementById('ratio').value = ratio.toFixed(4);
+            document.getElementById('reductionFactor').value = reductionFactor.toFixed(4);
+            
+            // Update dynamic title
+            if (budgetYear > 0) {
+                const performanceYear = budgetYear - 1;
+                if (document.getElementById('budgetYearDisplay')) {
+                    document.getElementById('budgetYearDisplay').textContent = budgetYear;
+                }
+                if (document.getElementById('performanceYearDisplay')) {
+                    document.getElementById('performanceYearDisplay').textContent = performanceYear;
+                }
+                if (document.getElementById('salaryYearDisplay')) {
+                    document.getElementById('salaryYearDisplay').textContent = performanceYear;
+                }
+                // Update field labels to show the actual year
+                document.querySelectorAll('.salary-year-label').forEach(el => {
+                    el.textContent = performanceYear;
+                });
+            } else {
+                if (document.getElementById('budgetYearDisplay')) {
+                    document.getElementById('budgetYearDisplay').textContent = '____';
+                }
+                if (document.getElementById('performanceYearDisplay')) {
+                    document.getElementById('performanceYearDisplay').textContent = '____';
+                }
+            }
+
+            // Store in baseSettings - KEEP FULL PRECISION internally
+            baseSettings = {
+                orgName,
+                orgNumber,
+                budgetYear,
+                salaryA,
+                salaryB,
+                salaryC,
+                budgetRate,
+                employeeCapRate,  // Employee promotion cap (5% or custom)
+                totalBaseBudget,
+                annualBudget,
+                monthlyBudget,
+                ratio,  // Full precision
+                reductionFactor  // Full precision
+            };
+
+            validateStep1();
+        }
+
+        function validateStep1() {
+            const valid = baseSettings.orgName && 
+                         baseSettings.orgNumber &&
+                         baseSettings.budgetYear > 0 &&
+                         baseSettings.salaryA > 0 && 
+                         baseSettings.salaryB >= 0 && 
+                         baseSettings.salaryC >= 0 &&
+                         baseSettings.budgetRate > 0;
+            document.getElementById('step1Next').disabled = !valid;
+        }
+
+        // Initialize criteria
+        function initializeCriteria() {
+            criteria = [];
+            for (let i = 0; i < 1; i++) {
+                addCriteria();
+            }
+        }
+
+        // Add criteria
+        function addCriteria() {
+            if (false) {
+                showAlert('error', '');
+                return;
+            }
+
+            const index = criteria.length;
+            const criterion = {
+                id: Date.now() + index,
+                name: '',
+                weight: 0,
+                isCustom: false
+            };
+            criteria.push(criterion);
+
+            renderCriteria();
+            updateWeightDisplay();
+        }
+
+        // Remove criteria
+        function removeCriteria(id) {
+            if (criteria.length <= 1) {
+                showAlert('error', 'חייב להיות לפחות מדד אחד');
+                return;
+            }
+            criteria = criteria.filter(c => c.id !== id);
+            renderCriteria();
+            updateWeightDisplay();
+        }
+
+        // Render criteria
+        function renderCriteria() {
+            const container = document.getElementById('criteriaContainer');
+            container.innerHTML = '';
+
+            criteria.forEach((criterion, index) => {
+                const card = document.createElement('div');
+                card.className = 'criteria-card';
+                card.innerHTML = `
+                    <div class="criteria-header">
+                        <div class="criteria-number">${index + 1}</div>
+                        ${criteria.length > 1 ? `<button class="remove-btn" onclick="removeCriteria(${criterion.id})">🗑️ הסר</button>` : ''}
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">שם המדד <span class="required">*</span></label>
+                            <select class="form-select" id="criteriaSelect_${criterion.id}" onchange="handleCriteriaSelect(${criterion.id}, this.value)">
+                                <option value="">בחר מדד מהרשימה...</option>
+                                <optgroup label="🔧 מדד מותאם אישית">
+                                    <option value="custom" ${criterion.isCustom ? 'selected' : ''}>מדד מותאם אישית (הגדרה חופשית)</option>
+                                </optgroup>
+                                ${criteriaCategories.map(cat => `<optgroup label="${cat.label}">${cat.items.map(item => `<option value="${item}" ${!criterion.isCustom && criterion.name === item ? 'selected' : ''}>${item}</option>`).join('')}</optgroup>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group" id="customCriteriaGroup_${criterion.id}" style="display: ${criterion.isCustom ? 'flex' : 'none'}">
+                            <label class="form-label">שם המדד המותאם <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="customCriteria_${criterion.id}" 
+                                   value="${criterion.isCustom ? criterion.name : ''}" 
+                                   onchange="updateCustomCriteria(${criterion.id}, this.value)"
+                                   placeholder="הזן שם מדד">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">משקל (%) <span class="required">*</span></label>
+                            <input type="number" class="form-input" id="weight_${criterion.id}" 
+                                   value="${criterion.weight}" 
+                                   onchange="updateWeight(${criterion.id}, this.value)"
+                                   min="0" max="100" step="0.1" placeholder="הזן משקל">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('addCriteriaBtn').disabled = false;
+        }
+
+        // Handle criteria selection
+        function handleCriteriaSelect(id, value) {
+            const criterion = criteria.find(c => c.id === id);
+            if (value === 'custom') {
+                criterion.isCustom = true;
+                criterion.name = '';
+                document.getElementById(`customCriteriaGroup_${id}`).style.display = 'flex';
+            } else {
+                criterion.isCustom = false;
+                criterion.name = value;
+                document.getElementById(`customCriteriaGroup_${id}`).style.display = 'none';
+            }
+            validateStep2();
+        }
+
+        // Update custom criteria
+        function updateCustomCriteria(id, value) {
+            const criterion = criteria.find(c => c.id === id);
+            criterion.name = value;
+            validateStep2();
+        }
+
+        // Update weight
+        function updateWeight(id, value) {
+            const criterion = criteria.find(c => c.id === id);
+            criterion.weight = parseFloat(value) || 0;
+            updateWeightDisplay();
+            validateStep2();
+        }
+
+        // Update weight display
+        function updateWeightDisplay() {
+            const total = criteria.reduce((sum, c) => sum + c.weight, 0);
+            const totalSpan = document.getElementById('totalWeight');
+            const progressBar = document.getElementById('weightProgress');
+            const progressText = document.getElementById('weightProgressText');
+            const statusText = document.getElementById('weightStatus');
+            
+            // Update total
+            totalSpan.textContent = total.toFixed(1) + '%';
+            
+            // Update progress bar
+            const percentage = Math.min(total, 100);
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = total.toFixed(1) + '%';
+            
+            // Update status message with color
+            if (Math.abs(total - 100) < 0.01) {
+                statusText.textContent = '✅ מעולה! המשקולות מגיעות ל-100%';
+                statusText.style.color = '#2D8659';
+                progressBar.style.background = '#6BCF7F';
+            } else if (total > 100) {
+                statusText.textContent = '⚠️ חריגה! סה"כ גדול מ-100%';
+                statusText.style.color = '#C0392B';
+                progressBar.style.background = '#FF6B6B';
+            } else if (total > 90) {
+                statusText.textContent = `עוד ${(100 - total).toFixed(1)}% להשלמת 100%`;
+                statusText.style.color = '#E67E22';
+                progressBar.style.background = 'linear-gradient(90deg, #FFD93D 0%, #6BCF7F 100%)';
+            } else {
+                statusText.textContent = `נותרו ${(100 - total).toFixed(1)}% להשלמת 100%`;
+                statusText.style.color = '#7F8C8D';
+                progressBar.style.background = 'linear-gradient(90deg, #FF6B6B 0%, #FFD93D 100%)';
+            }
+            
+            // Old display (hidden but keep for compatibility)
+            const display = document.getElementById('weightDisplay');
+            if (display) {
+                display.classList.remove('valid', 'invalid');
+                if (Math.abs(total - 100) < 0.01) {
+                    display.classList.add('valid');
+                } else {
+                    display.classList.add('invalid');
+                }
+            }
+        }
+
+        // Validate step 2
+        function validateStep2() {
+            const totalWeight = criteria.reduce((sum, c) => sum + c.weight, 0);
+            const allNamed = criteria.every(c => c.name && c.name.trim() !== '');
+            const weightsValid = Math.abs(totalWeight - 100) < 0.01;
+            
+            const valid = allNamed && weightsValid;
+            document.getElementById('step2Next').disabled = !valid;
+            
+            if (!weightsValid && allNamed) {
+                if (totalWeight > 100) {
+                    showAlert('warning', 'סך המשקולות עולה על 100%');
+                } else if (totalWeight < 100) {
+                    showAlert('warning', 'סך המשקולות נמוך מ-100%');
+                }
+            }
+        }
+
+        // Add employee
+        function addEmployee() {
+            const name = document.getElementById('employeeName').value.trim();
+            const id = document.getElementById('employeeId').value.trim();
+            const salary = parseFloat(document.getElementById('employeeSalary').value) || 0;
+
+            if (!name || !id || salary <= 0) {
+                showAlert('error', 'יש למלא את כל השדות הבסיסיים (שם, ת.ז., משכורת)');
+                return;
+            }
+
+            // Check for duplicate ID
+            if (employees.some(e => e.id === id)) {
+                showAlert('error', 'מספר זהות זה כבר קיים במערכת');
+                return;
+            }
+
+            // Collect and validate scores
+            const scores = {};
+            let allScoresValid = true;
+            let invalidScores = [];
+            criteria.forEach(c => {
+                const scoreInput = document.getElementById(`score_${c.id}`);
+                const score = parseFloat(scoreInput.value);
+                
+                if (scoreInput.value === '' || score < 0 || score > 5) {
+                    allScoresValid = false;
+                    invalidScores.push(c.name);
+                }
+                scores[c.id] = score !== undefined && scoreInput.value !== '' ? score : null;
+            });
+
+            if (!allScoresValid) {
+                showAlert('error', `❌ יש למלא ציונים תקינים (0-5) בכל המדדים. בעיה ב: ${invalidScores.join(', ')}`);
+                return;
+            }
+
+            employees.push({ name, id, salary, scores });
+
+            // Clear form
+            document.getElementById('employeeName').value = '';
+            document.getElementById('employeeId').value = '';
+            document.getElementById('employeeSalary').value = '';
+            criteria.forEach(c => {
+                document.getElementById(`score_${c.id}`).value = '';
+            });
+
+            // Focus back on first field for quick data entry
+            document.getElementById('employeeName').focus();
+
+            renderEmployeeTable();
+            validateStep3();
+            showAlert('success', `✓ העובד ${name} נוסף בהצלחה!`);
+        }
+
+        // Download Excel template
+        function downloadExcelTemplate() {
+            const templateData = [
+                ['שם עובד', 'מספר זהות', 'משכורת'],
+                ['דני כהן', '123456789', '15000'],
+                ['שרה לוי', '987654321', '18000'],
+                ['יוסי מזרחי', '456789123', '16500']
+            ];
+            
+            const ws = XLSX.utils.aoa_to_sheet(templateData);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 15 }
+            ];
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'עובדים');
+            
+            XLSX.writeFile(wb, 'תבנית_עובדים.xlsx');
+            showAlert('success', '✓ תבנית Excel הורדה בהצלחה!');
+        }
+
+        // Add keyboard shortcut for quick employee addition
+        document.addEventListener('DOMContentLoaded', function() {
+            // Listen for Enter key in input fields of step 3
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && currentStep === 3) {
+                    const activeTab = document.querySelector('.tab-content.active');
+                    if (activeTab && activeTab.id === 'manualTab') {
+                        addEmployee();
+                    }
+                }
+            });
+        });
+
+        // Remove employee
+        function removeEmployee(id) {
+            employees = employees.filter(e => e.id !== id);
+            renderEmployeeTable();
+            validateStep3();
+        }
+
+        // Render employee table
+        function renderEmployeeTable() {
+            const table = document.getElementById('employeeTable');
+            const employeeCountSpan = document.getElementById('employeeCount');
+            
+            // Rebuild the entire table to ensure proper alignment
+            let tableHTML = `
+                <thead>
+                    <tr>
+                        <th style="min-width: 50px; width: 50px; text-align: center;">#</th>
+                        <th style="min-width: 150px; width: 200px; text-align: right;">שם עובד</th>
+                        <th style="min-width: 120px; width: 130px; text-align: center;">מספר זהות</th>
+                        <th style="min-width: 120px; width: 130px; text-align: center;">משכורת (₪)</th>
+            `;
+            
+            // Add criteria headers - SAME width for all
+            criteria.forEach(c => {
+                tableHTML += `<th style="min-width: 140px; width: 140px; text-align: center;">${c.name}<br><small style="font-weight:normal; opacity: 0.8;">(0-5)</small></th>`;
+            });
+            
+            tableHTML += `
+                        <th style="min-width: 80px; width: 100px; text-align: center;">פעולות</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+            
+            // Update count
+            if (employeeCountSpan) {
+                employeeCountSpan.textContent = employees.length;
+            }
+
+            // Add employee rows
+            if (employees.length === 0) {
+                const colCount = 5 + criteria.length;
+                tableHTML += `
+                    <tr>
+                        <td colspan="${colCount}" style="text-align: center; padding: 2rem; color: var(--text-light);">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
+                            <div style="font-size: 1.1rem;">טרם הוזנו עובדים</div>
+                            <div style="font-size: 0.9rem; margin-top: 0.5rem;">השתמש בטבלה למעלה כדי להוסיף עובדים</div>
+                        </td>
+                    </tr>
+                `;
+            } else {
+                employees.forEach((emp, index) => {
+                    tableHTML += '<tr>';
+                    
+                    // Row number - MATCH header width
+                    tableHTML += `<td style="width: 50px; font-weight: 700; color: var(--primary); text-align: center;">${index + 1}</td>`;
+                    
+                    // Name - MATCH header width
+                    tableHTML += `<td style="width: 140px; text-align: right;">${emp.name}</td>`;
+                    
+                    // ID - MATCH header width
+                    tableHTML += `<td style="width: 110px; text-align: center;">${emp.id}</td>`;
+                    
+                    // Salary - MATCH header width
+                    tableHTML += `<td style="width: 130px; text-align: center;">${formatNumber(emp.salary)}</td>`;
+                    
+                    // Score cells - MATCH header width (120px each)
+                    criteria.forEach(c => {
+                        const score = emp.scores[c.id] !== undefined ? emp.scores[c.id] : 0;
+                        const bgColor = score >= 4 ? 'rgba(45, 134, 89, 0.1)' : 
+                                       score >= 3 ? 'rgba(212, 175, 55, 0.1)' : 
+                                       score >= 1 ? 'rgba(230, 126, 34, 0.1)' : 
+                                       score === 0 ? 'rgba(150,150,150,0.08)' :
+                                       'rgba(192, 57, 43, 0.1)';
+                        tableHTML += `
+                            <td style="width: 120px; background: ${bgColor}; padding: 0.5rem; text-align: center;">
+                                <input type="number" 
+                                       value="${score}" 
+                                       min="0" 
+                                       max="5" 
+                                       step="0.1"
+                                       oninput="updateEmployeeScore('${emp.id}', ${c.id}, this.value, this)"
+                                       onfocus="this.select()"
+                                       style="width: 100%; text-align: center; border: 2px solid transparent;"
+                                       title="ציון בטווח 0-5">
+                            </td>
+                        `;
+                    });
+                    
+                    // Action button
+                    tableHTML += `
+                        <td style="text-align: center;">
+                            <button class="action-btn" onclick="removeEmployee('${emp.id}')" title="מחק עובד">
+                                🗑️
+                            </button>
+                        </td>
+                    `;
+                    
+                    tableHTML += '</tr>';
+                });
+            }
+            
+            tableHTML += '</tbody>';
+            
+            table.innerHTML = tableHTML;
+        }
+
+        // Update employee score
+        function validateScoreInput(input) {
+            const value = parseFloat(input.value);
+            
+            if (input.value === '') return; // Allow empty for editing
+            
+            if (value > 5) {
+                input.style.borderColor = '#C0392B';
+                input.style.background = '#FFE5E5';
+                showAlert('error', '❌ שגיאה: הציון המקסימלי הוא 5! אנא הזן ציון בין 0 ל-5.');
+                input.value = '';
+                setTimeout(() => { input.style.borderColor = 'transparent'; input.style.background = 'white'; }, 3000);
+                return false;
+            } else if (value < 0) {
+                input.style.borderColor = '#C0392B';
+                input.style.background = '#FFE5E5';
+                showAlert('error', '❌ שגיאה: הציון המינימלי הוא 0! אנא הזן ציון בין 0 ל-5.');
+                input.value = '';
+                setTimeout(() => { input.style.borderColor = 'transparent'; input.style.background = 'white'; }, 3000);
+                return false;
+            } else {
+                input.style.borderColor = 'transparent';
+                input.style.background = 'white';
+                return true;
+            }
+        }
+        
+        // Update employee score
+        function updateEmployeeScore(employeeId, criteriaId, value, inputEl) {
+            const employee = employees.find(e => e.id === employeeId);
+            if (!employee) return;
+            
+            if (value === '' || value === null) return;
+            
+            const score = parseFloat(value);
+            if (isNaN(score)) return;
+            
+            const clamped = Math.min(5, Math.max(0, score));
+            employee.scores[criteriaId] = clamped;
+            
+            // Update background color only – no full re-render
+            const cell = inputEl ? inputEl.closest('td') : (event && event.target ? event.target.closest('td') : null);
+            if (cell) {
+                const bgColor = clamped >= 4 ? 'rgba(45, 134, 89, 0.1)' : 
+                               clamped >= 3 ? 'rgba(212, 175, 55, 0.1)' : 
+                               clamped >= 2 ? 'rgba(230, 126, 34, 0.1)' : 
+                               clamped > 0  ? 'rgba(192, 57, 43, 0.1)' :
+                               'rgba(150,150,150,0.08)';
+                cell.style.background = bgColor;
+            }
+        }
+
+        // Render employee scores inputs
+        function renderEmployeeScores() {
+            // Re-build criteria th columns directly in the header row
+            const thead = document.querySelector('#inputTable thead tr');
+            // Remove previous criteria ths (between salary [index 2] and action [last])
+            Array.from(thead.querySelectorAll('th.criteria-th')).forEach(th => th.remove());
+            const actionTh = thead.lastElementChild;
+            criteria.forEach(c => {
+                const th = document.createElement('th');
+                th.className = 'criteria-th';
+                th.style.width = '120px';
+                th.style.minWidth = '120px';
+                th.style.textAlign = 'center';
+                th.innerHTML = `${c.name}<br><small style="font-weight: normal; opacity: 0.8;">(0-5)</small> <span class="required">*</span>`;
+                thead.insertBefore(th, actionTh);
+            });
+
+            // Inject individual score tds into input row
+            const inputRow = document.getElementById('inputRow');
+            Array.from(inputRow.querySelectorAll('td.criteria-input-td')).forEach(td => td.remove());
+            const actionCell = document.getElementById('inputActionCell');
+            criteria.forEach(c => {
+                const td = document.createElement('td');
+                td.className = 'criteria-input-td';
+                td.style.width = '120px';
+                td.style.padding = '0.5rem';
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'form-input';
+                input.id = `score_${c.id}`;
+                input.min = '0';
+                input.max = '5';
+                input.step = '0.1';
+                input.placeholder = '0-5';
+                input.style.margin = '0';
+                input.style.width = '100%';
+                input.style.textAlign = 'center';
+                input.title = 'ציון בטווח 0-5';
+                input.addEventListener('input', function() { validateScoreInput(this); });
+                td.appendChild(input);
+                inputRow.insertBefore(td, actionCell);
+            });
+        }
+
+        // Validate step 3
+        function validateStep3() {
+            const btn = document.getElementById('step3Next');
+            if (btn) btn.disabled = employees.length === 0;
+        }
+
+        // Handle file upload
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Show loading
+            showAlert('success', '⏳ קורא את הקובץ...');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+
+                    if (!jsonData || jsonData.length === 0) {
+                        showAlert('error', 'הקובץ ריק או לא מכיל נתונים');
+                        return;
+                    }
+
+                    // Get column headers
+                    const headers = Object.keys(jsonData[0]);
+                    console.log('Headers found:', headers);
+
+                    // Try to identify name column
+                    const nameCol = headers.find(h => 
+                        h.includes('שם') || 
+                        h.toLowerCase().includes('name') || 
+                        h.includes('עובד')
+                    ) || headers[0];
+
+                    // Try to identify ID column
+                    const idCol = headers.find(h => 
+                        h.includes('זהות') || 
+                        h.includes('ת.ז') || 
+                        h.includes('תז') ||
+                        h.toLowerCase().includes('id') ||
+                        h.toLowerCase().includes('identifier')
+                    ) || headers[1];
+
+                    // Try to identify salary column
+                    const salaryCol = headers.find(h => 
+                        h.includes('משכורת') || 
+                        h.includes('שכר') ||
+                        h.toLowerCase().includes('salary') ||
+                        h.toLowerCase().includes('wage')
+                    ) || headers[2];
+
+                    console.log('Detected columns:', { nameCol, idCol, salaryCol });
+
+                    let imported = 0;
+                    let skipped = 0;
+                    const errors = [];
+
+                    jsonData.forEach((row, index) => {
+                        const name = String(row[nameCol] || '').trim();
+                        const id = String(row[idCol] || '').trim();
+                        const salary = parseFloat(row[salaryCol]) || 0;
+
+                        if (name && id && salary > 0) {
+                            // Check for duplicate
+                            if (employees.some(e => e.id === id)) {
+                                skipped++;
+                                errors.push(`שורה ${index + 2}: ת.ז. ${id} כבר קיים`);
+                            } else {
+                                const scores = {};
+                                criteria.forEach(c => {
+                                    scores[c.id] = 0; // Default scores, can be edited later
+                                });
+                                employees.push({ name, id, salary, scores });
+                                imported++;
+                            }
+                        } else {
+                            skipped++;
+                            errors.push(`שורה ${index + 2}: חסרים נתונים (שם: ${name || 'חסר'}, ת.ז.: ${id || 'חסר'}, משכורת: ${salary || 'חסר'})`);
+                        }
+                    });
+
+                    // Clear file input
+                    document.getElementById('fileInput').value = '';
+
+                    renderEmployeeTable();
+                    validateStep3();
+                    
+                    if (imported > 0) {
+                        let message = `✓ ${imported} עובדים יובאו בהצלחה!`;
+                        if (skipped > 0) {
+                            message += `\n⚠️ ${skipped} שורות דולגו`;
+                        }
+                        showAlert('success', message);
+                        
+                        // Show detailed errors in console
+                        if (errors.length > 0 && errors.length <= 5) {
+                            console.log('שורות שדולגו:', errors);
+                            setTimeout(() => {
+                                showAlert('warning', `שים לב: ${errors.length} שורות דולגו. פתח את קונסול המפתחים לפרטים.`);
+                            }, 3000);
+                        }
+                    } else {
+                        showAlert('error', `לא יובאו עובדים. בדוק שהעמודות בקובץ הן: ${nameCol}, ${idCol}, ${salaryCol}`);
+                    }
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                    showAlert('error', 'שגיאה בקריאת הקובץ: ' + error.message + '. נסה קובץ Excel אחר או בדוק שהקובץ לא פגום.');
+                }
+            };
+            
+            reader.onerror = function() {
+                showAlert('error', 'שגיאה בקריאת הקובץ. נסה שוב.');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Calculate results
+        function calculateResults() {
+            // Use CORRECT formula: (A + B) × E
+            const annualBudget = baseSettings.totalBaseBudget * baseSettings.reductionFactor;
+            const monthlyBudget = annualBudget / 12;
+            
+            // Get employee cap rate (default 5% or custom)
+            const employeeCapRate = baseSettings.employeeCapRate || 5;
+            
+            // Step 1: Calculate initial promotion for each employee
+            // Promotion = (weighted score / 5) * employeeCapRate% * salary
+            employees.forEach(emp => {
+                let weightedScore = 0;
+                criteria.forEach(c => {
+                    weightedScore += (emp.scores[c.id] || 0) * (c.weight / 100);
+                });
+                emp.weightedScore = weightedScore;
+                
+                // Calculate promotion percentage based on weighted score
+                // Score of 5 = employeeCapRate%, Score of 4 = (4/5)*employeeCapRate%, etc.
+                emp.promotionPercent = (weightedScore / 5) * employeeCapRate;
+                
+                // Cap at employeeCapRate%
+                if (emp.promotionPercent > employeeCapRate) {
+                    emp.promotionPercent = employeeCapRate;
+                }
+                
+                // Calculate initial promotion amount
+                emp.initialPromotion = emp.salary * (emp.promotionPercent / 100);
+            });
+            
+            // Step 2: Calculate total initial promotions
+            const totalInitialPromotions = employees.reduce((sum, emp) => sum + emp.initialPromotion, 0);
+            
+            // Step 3: Check if we need to reduce proportionally (against MONTHLY budget)
+            let reductionFactor = 1;
+            if (totalInitialPromotions > monthlyBudget) {
+                reductionFactor = monthlyBudget / totalInitialPromotions;
+            }
+            
+            // Step 4: Apply reduction factor and calculate final amounts
+            let totalUsed = 0;
+            employees.forEach(emp => {
+                emp.finalPromotion = emp.initialPromotion * reductionFactor;
+                emp.finalPromotionPercent = (emp.finalPromotion / emp.salary) * 100;
+                totalUsed += emp.finalPromotion;
+            });
+
+            return {
+                annualBudget,
+                monthlyBudget,
+                totalUsed,
+                remaining: monthlyBudget - totalUsed,
+                reductionFactor,
+                totalInitialPromotions
+            };
+        }
+
+        // Render results
+        function renderResults() {
+            const results = calculateResults();
+
+            document.getElementById('totalBudgetAnnual').textContent = formatCurrency(results.annualBudget);
+            document.getElementById('totalBudgetMonthly').textContent = formatCurrency(results.monthlyBudget);
+            document.getElementById('totalBudgetUsed').textContent = formatCurrency(results.totalUsed);
+            document.getElementById('budgetRemaining').textContent = formatCurrency(results.remaining);
+            document.getElementById('totalEmployees').textContent = employees.length;
+
+            // Fix 3: inject criteria columns into results table header
+            const critHeadersTh = document.getElementById('resultsCriteriaHeaders');
+            if (critHeadersTh) {
+                const tr = critHeadersTh.closest('tr');
+                // Remove old criteria ths
+                Array.from(tr.querySelectorAll('th.result-crit-th')).forEach(th => th.remove());
+                criteria.forEach(c => {
+                    const th = document.createElement('th');
+                    th.className = 'result-crit-th';
+                    th.style.fontSize = '11px';
+                    th.innerHTML = `${c.name}<br><small style="font-weight:normal;opacity:0.8;">(${c.weight.toFixed(0)}%)</small>`;
+                    tr.insertBefore(th, critHeadersTh);
+                });
+                critHeadersTh.style.display = 'none';
+            }
+
+            // Fix 4: reduction notice with proposal disclaimer
+            const reductionInfo = document.getElementById('reductionInfo');
+            if (results.reductionFactor < 1) {
+                const reductionPercent = ((1 - results.reductionFactor) * 100).toFixed(2);
+                reductionInfo.innerHTML = `
+                    <div style="background:#fff3cd;border:2px solid #e07b39;border-radius:10px;padding:1.2rem 1.5rem;margin-bottom:1rem;">
+                        <h3 style="color:#b45309;margin:0 0 0.5rem 0;">⚠️ חריגה מהתקציב החודשי – בוצעה הפחתה יחסית</h3>
+                        <p style="margin:0.3rem 0;">
+                            סכום הקידום הראשוני (<strong>${formatCurrency(results.totalInitialPromotions)}</strong>) חרג מהתקציב החודשי (<strong>${formatCurrency(results.monthlyBudget)}</strong>).<br>
+                            <strong>כל הקידומים הופחתו ב-${reductionPercent}% באופן יחסי</strong> (מקדם הפחתה: ${results.reductionFactor.toFixed(4)}).
+                        </p>
+                    </div>
+                `;
+                reductionInfo.style.display = 'block';
+            } else {
+                reductionInfo.innerHTML = `
+                    <div style="background:#e8f4ee;border:2px solid #1a7a4a;border-radius:10px;padding:1.2rem 1.5rem;margin-bottom:1rem;">
+                        <h3 style="color:#1a7a4a;margin:0 0 0.5rem 0;">✅ תקציב חודשי מספיק – לא נדרשה הפחתה</h3>
+                        <p style="margin:0.3rem 0;">
+                            סכום הקידום המחושב (<strong>${formatCurrency(results.totalInitialPromotions)}</strong>) נמוך מהתקציב החודשי (<strong>${formatCurrency(results.monthlyBudget)}</strong>).<br>
+                            כל העובדים מקבלים את מלוא הקידום המחושב.
+                        </p>
+                    </div>
+                `;
+                reductionInfo.style.display = 'block';
+            }
+
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+
+            employees.forEach(emp => {
+                const row = document.createElement('tr');
+                const rowStyle = results.reductionFactor < 1 ? 'background: rgba(255, 193, 7, 0.05);' : '';
+
+                // Build criteria score cells
+                let critCells = '';
+                criteria.forEach(c => {
+                    critCells += `<td style="text-align:center;${rowStyle}">${(emp.scores[c.id] !== undefined ? emp.scores[c.id] : 0).toFixed(1)}</td>`;
+                });
+
+                row.innerHTML = `
+                    <td style="text-align: right; ${rowStyle}">${emp.name}</td>
+                    <td style="text-align: center; ${rowStyle}">${emp.id}</td>
+                    <td style="text-align: center; ${rowStyle}">${formatNumber(emp.salary)}</td>
+                    ${critCells}
+                    <td style="text-align: center; font-weight: 600; ${rowStyle}">${emp.weightedScore.toFixed(2)}</td>
+                    <td style="text-align: center; ${rowStyle}">${emp.promotionPercent.toFixed(2)}%</td>
+                    <td style="text-align: center; ${rowStyle}">${formatNumber(emp.initialPromotion)}</td>
+                    <td style="font-weight: 700; color: var(--success); text-align: center; background: rgba(45, 134, 89, 0.1);">${emp.finalPromotionPercent.toFixed(2)}%</td>
+                    <td style="font-weight: 700; color: var(--success); text-align: center; background: rgba(45, 134, 89, 0.1);">${formatNumber(emp.finalPromotion)}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Render chart
+            renderPromotionChart(results);
+            renderBellChart(employees.map(e => e.finalPromotionPercent));
+        }
+
+        let promotionChartInstance = null;
+
+        function renderPromotionChart(results) {
+            if (!employees.length) return;
+
+            const section = document.getElementById('chartSection');
+            section.style.display = 'block';
+
+            const labels = employees.map(e => e.name);
+            const data = employees.map(e => parseFloat(e.finalPromotionPercent.toFixed(2)));
+            const avg = data.reduce((a, b) => a + b, 0) / data.length;
+
+            const colors = data.map(v => v >= avg ? 'rgba(26,122,74,0.82)' : 'rgba(43,76,126,0.72)');
+
+            // Destroy previous instance if exists
+            if (promotionChartInstance) { promotionChartInstance.destroy(); }
+
+            promotionChartInstance = new Chart(document.getElementById('promotionChart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        { label: 'אחוז קידום', data, backgroundColor: colors, borderRadius: 6, borderSkipped: false },
+                        { label: 'ממוצע ארגוני', data: Array(data.length).fill(parseFloat(avg.toFixed(2))), type: 'line',
+                          borderColor: '#e07b39', borderWidth: 2, borderDash: [6, 3], pointRadius: 0, fill: false }
+                    ]
+                },
+                options: {
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y.toFixed(2)}%` } }
+                    },
+                    scales: {
+                        y: { ticks: { callback: v => v + '%' }, grid: { color: '#f0f4f8' }, max: 6 },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            // Stats row
+            const statsEl = document.getElementById('chartStats');
+            const maxEmp = employees[data.indexOf(Math.max(...data))];
+            const minEmp = employees[data.indexOf(Math.min(...data))];
+            statsEl.innerHTML = `
+                <div style="flex:1;background:#f0f4f8;border-radius:10px;padding:0.7rem 1rem;text-align:center;">
+                    <div style="font-size:1.2rem;font-weight:700;color:#2b4c7e;">${avg.toFixed(2)}%</div>
+                    <div style="font-size:0.75rem;color:#7a8fa6;margin-top:2px;">ממוצע קידום לעובד</div>
+                </div>
+                <div style="flex:1;background:#e8f4ee;border-radius:10px;padding:0.7rem 1rem;text-align:center;">
+                    <div style="font-size:1.1rem;font-weight:700;color:#1a7a4a;">${Math.max(...data).toFixed(2)}%</div>
+                    <div style="font-size:0.75rem;color:#7a8fa6;margin-top:2px;">קידום גבוה ביותר – ${maxEmp.name}</div>
+                </div>
+                <div style="flex:1;background:#fff3e0;border-radius:10px;padding:0.7rem 1rem;text-align:center;">
+                    <div style="font-size:1.1rem;font-weight:700;color:#e07b39;">${Math.min(...data).toFixed(2)}%</div>
+                    <div style="font-size:0.75rem;color:#7a8fa6;margin-top:2px;">קידום נמוך ביותר – ${minEmp.name}</div>
+                </div>
+                <div style="flex:1;background:${results.reductionFactor < 1 ? '#fff3cd' : '#e8f4ee'};border-radius:10px;padding:0.7rem 1rem;text-align:center;">
+                    <div style="font-size:1.1rem;font-weight:700;color:${results.reductionFactor < 1 ? '#b45309' : '#1a7a4a'};">${results.reductionFactor < 1 ? '⚠️ הופחת' : '✓ תקין'}</div>
+                    <div style="font-size:0.75rem;color:#7a8fa6;margin-top:2px;">סטטוס תקציב</div>
+                </div>
+            `;
+        }
+
+        let bellChartInstance = null;
+
+        function renderBellChart(data) {
+            const section = document.getElementById('bellSection');
+            section.style.display = 'block';
+
+            const avg = data.reduce((a, b) => a + b, 0) / data.length;
+            const variance = data.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / data.length;
+            const std = Math.sqrt(variance) || 0.01;
+
+            const normal = (x) => (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - avg) / std, 2));
+
+            // X axis: always 0–6 (cap range)
+            const xMin = 0, xMax = 6, steps = 150;
+            const bellPoints = [];
+            for (let i = 0; i <= steps; i++) {
+                const x = xMin + (xMax - xMin) * i / steps;
+                bellPoints.push({ x: parseFloat(x.toFixed(3)), y: normal(x) });
+            }
+
+            const empDots = data.map(v => ({ x: parseFloat(v.toFixed(3)), y: normal(v) }));
+
+            const isConcentrated = false; // no color change - curve shape speaks for itself
+            const curveColor = '#2b4c7e';
+            const curveFill  = 'rgba(43,76,126,0.08)';
+
+            if (bellChartInstance) bellChartInstance.destroy();
+
+            bellChartInstance = new Chart(document.getElementById('bellChart'), {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'עקומת פעמון',
+                            data: bellPoints,
+                            borderColor: curveColor,
+                            backgroundColor: curveFill,
+                            borderWidth: 2.5,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            showLine: true,
+                            order: 2
+                        },
+                        {
+                            label: 'עובדים',
+                            data: empDots,
+                            backgroundColor: '#e07b39',
+                            borderColor: 'white',
+                            borderWidth: 2,
+                            pointRadius: 8,
+                            pointHoverRadius: 10,
+                            showLine: false,
+                            order: 1
+                        }
+                    ]
+                },
+                options: {
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.dataset.label === 'עובדים'
+                                    ? ` אחוז קידום: ${ctx.parsed.x.toFixed(2)}%`
+                                    : ''
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: 6,
+                            ticks: { callback: v => (+v).toFixed(0) + '%', stepSize: 1 },
+                            grid: { display: false }
+                        },
+                        y: { display: false, min: 0, max: normal(avg) * 1.25 }
+                    }
+                }
+            });
+
+            const minV = Math.min(...data), maxV = Math.max(...data);
+            const spreadLabel = std < 0.4 ? 'התפלגות צרה מאוד' : std < 0.8 ? 'התפלגות צרה' : std < 1.2 ? 'התפלגות בינונית' : 'התפלגות רחבה';
+            const spreadColor = '#2b4c7e';
+            const spreadBg    = '#f0f4f8';
+            const spreadNote  = std < 0.4 ? 'סטיית תקן ' + std.toFixed(2) + '% – עקומה צרה מאוד'
+                              : std < 0.8 ? 'סטיית תקן ' + std.toFixed(2) + '% – עקומה צרה'
+                              : std < 1.2 ? 'סטיית תקן ' + std.toFixed(2) + '% – עקומה בינונית' : 'סטיית תקן ' + std.toFixed(2) + '% – עקומה רחבה';
+
+            document.getElementById('bellStats').innerHTML = `
+                <div style="background:#f0f4f8;border-radius:10px;padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-size:0.8rem;color:#7a8fa6;">ממוצע קידום</div>
+                    <div style="font-size:1rem;font-weight:700;color:#2b4c7e;">${avg.toFixed(2)}%</div>
+                </div>
+                <div style="background:#f0f4f8;border-radius:10px;padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-size:0.8rem;color:#7a8fa6;">סטיית תקן</div>
+                    <div style="font-size:1rem;font-weight:700;color:#2b4c7e;">${std.toFixed(2)}%</div>
+                </div>
+                <div style="background:#e8f4ee;border-radius:10px;padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-size:0.8rem;color:#7a8fa6;">טווח (מתוך 0–6%)</div>
+                    <div style="font-size:1rem;font-weight:700;color:#1a7a4a;">${minV.toFixed(2)}%–${maxV.toFixed(2)}%</div>
+                </div>
+                <div style="background:${spreadBg};border-radius:10px;padding:0.6rem 1rem;display:flex;justify-content:space-between;align-items:center;">
+                    <div style="font-size:0.8rem;color:#7a8fa6;">${spreadNote}</div>
+                    <div style="font-size:1rem;font-weight:700;color:${spreadColor};">${spreadLabel}</div>
+                </div>
+            `;
+        }
+        async function exportToPDF() {
+            const results = calculateResults();
+            const dateStr = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' });
+            const orgName = baseSettings.orgName || '';
+            const orgNumber = baseSettings.orgNumber || '';
+            const budgetYear = baseSettings.budgetYear || '';
+            const salaryYear = budgetYear ? budgetYear - 1 : '';
+
+            // Capture chart as image
+            let chartImgHtml = '';
+            if (promotionChartInstance) {
+                const chartCanvas = document.getElementById('promotionChart');
+                const chartImg = chartCanvas.toDataURL('image/png');
+
+                let bellImgTag = '';
+                if (bellChartInstance) {
+                    // Capture the entire bellSection (chart + stats) as one image
+                    const bellSection = document.getElementById('bellSection');
+                    const bellSectionCanvas = await html2canvas(bellSection, {
+                        scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false
+                    });
+                    const bellImg = bellSectionCanvas.toDataURL('image/png');
+                    bellImgTag = `
+                        <div style="background:white; border-radius:10px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.07); margin-top:12px;">
+                            <img src="${bellImg}" style="width:100%; height:auto; border-radius:6px;" />
+                        </div>`;
+                }
+                chartImgHtml = `
+                    <div style="page-break-before:always; padding:24px 36px 0; background:#f0f4f9;">
+                        <div style="background:white; border-radius:10px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+                            <div style="font-weight:700; color:#2b4c7e; font-size:13px; margin-bottom:6px;">📊 התפלגות קידום עובדים</div>
+                            <img src="${chartImg}" style="width:100%; height:auto; border-radius:6px;" />
+                        </div>
+                        ${bellImgTag}
+                    </div>`;
+            }
+
+            // Build employees table rows
+            let empRows = '';
+            employees.forEach((emp, i) => {
+                const rowBg = i % 2 === 0 ? '#f8fafd' : '#ffffff';
+                let scoreCells = '';
+                criteria.forEach(c => {
+                    scoreCells += `<td style="text-align:center;padding:7px 5px;">${(emp.scores[c.id] || 0).toFixed(1)}</td>`;
+                });
+                empRows += `
+                <tr style="background:${rowBg};">
+                    <td style="text-align:center;padding:7px 5px;font-weight:600;">${i + 1}</td>
+                    <td style="padding:7px 10px;font-weight:500;">${emp.name}</td>
+                    <td style="text-align:center;padding:7px 5px;direction:ltr;">${emp.id}</td>
+                    <td style="text-align:center;padding:7px 5px;">${emp.salary.toLocaleString('he-IL')} ₪</td>
+                    ${scoreCells}
+                    <td style="text-align:center;padding:7px 5px;font-weight:600;color:#2b4c7e;">${emp.weightedScore.toFixed(2)}</td>
+                    <td style="text-align:center;padding:7px 5px;">${emp.promotionPercent.toFixed(2)}%</td>
+                    <td style="text-align:center;padding:7px 5px;">${emp.finalPromotionPercent.toFixed(2)}%</td>
+                    <td style="text-align:center;padding:7px 5px;font-weight:700;color:#1a7a4a;">${emp.finalPromotion.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2})} ₪</td>
+                </tr>`;
+            });
+
+            // Total row
+            const totalUsed = employees.reduce((sum, e) => sum + e.finalPromotion, 0);
+            empRows += `
+            <tr style="background:#e8f4ee;font-weight:700;border-top:2px solid #1a7a4a;">
+                <td colspan="4" style="padding:8px 10px;text-align:right;">סה"כ</td>
+                ${criteria.map(() => '<td></td>').join('')}
+                <td colspan="3"></td>
+                <td style="text-align:center;padding:8px 5px;color:#1a7a4a;font-size:14px;">${totalUsed.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2})} ₪</td>
+            </tr>`;
+
+            // Criteria header cells
+            let critHeaders = '';
+            criteria.forEach((c, i) => {
+                critHeaders += `<th style="background:#2b4c7e;color:#fff;padding:9px 6px;text-align:center;font-size:11px;border-left:1px solid #3a5d9a;">מדד ${i+1}<br><span style="font-weight:400;font-size:10px;">${c.name}</span><br><span style="font-weight:400;font-size:10px;">(${c.weight.toFixed(0)}%)</span></th>`;
+            });
+
+            // Build criteria legend
+            let critLegend = '';
+            criteria.forEach((c, i) => {
+                critLegend += `<div style="margin-bottom:4px;">• <strong>מדד ${i+1}:</strong> ${c.name} (משקל ${c.weight.toFixed(0)}%)</div>`;
+            });
+
+            const html = `
+            <div id="pdf-content" style="
+                font-family: Arial, 'Arial Hebrew', sans-serif;
+                direction: rtl;
+                background: #fff;
+                width: 1100px;
+                padding: 0;
+                color: #222;
+            ">
+                <!-- Branding bar -->
+                <div style="background:#fff; border-bottom:1px solid #e0e7ef; padding:8px 36px; display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span style="font-size:13px; color:#2b4c7e; font-weight:700;">צביה וינברג, רו"ח</span>
+                    <span style="color:#c0cad8;">|</span>
+                    <span style="font-size:12px; color:#7a8fa6;">simulatorta@gmail.com</span>
+                </div>
+                <!-- Header banner -->
+                <div style="background: linear-gradient(135deg, #1a3558 0%, #2b4c7e 60%, #3a6ea5 100%); color:#fff; padding:28px 36px 22px; border-radius:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>
+                            <div style="font-size:22px; font-weight:700; letter-spacing:0.5px; margin-bottom:6px;">דוח תקציב קידום עובדים</div>
+                            <div style="font-size:13px; opacity:0.85;">${orgName}${orgNumber ? ' &nbsp;|&nbsp; ח.פ. ' + orgNumber : ''}</div>
+                        </div>
+                        <div style="text-align:left; font-size:13px; opacity:0.85; direction:ltr;">
+                            <div>שנת תקציב: <strong>${budgetYear}</strong></div>
+                            <div style="margin-top:4px;">${dateStr}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budget summary cards -->
+                <div style="display:flex; gap:16px; padding:20px 36px 0; background:#f0f4f9;">
+                    <div style="flex:1; background:#fff; border-radius:10px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #2b4c7e;">
+                        <div style="font-size:11px; color:#666; margin-bottom:4px;">תקציב קידום שנתי</div>
+                        <div style="font-size:22px; font-weight:700; color:#2b4c7e; direction:ltr;">${results.annualBudget.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2})} ₪</div>
+                    </div>
+                    <div style="flex:1; background:#fff; border-radius:10px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #1a7a4a;">
+                        <div style="font-size:11px; color:#666; margin-bottom:4px;">תקציב חודשי</div>
+                        <div style="font-size:22px; font-weight:700; color:#1a7a4a; direction:ltr;">${results.monthlyBudget.toLocaleString('he-IL', {minimumFractionDigits:2, maximumFractionDigits:2})} ₪</div>
+                    </div>
+                    <div style="flex:1; background:#fff; border-radius:10px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #e07b39;">
+                        <div style="font-size:11px; color:#666; margin-bottom:4px;">שיעור קידום מאושר</div>
+                        <div style="font-size:22px; font-weight:700; color:#e07b39;">${baseSettings.budgetRate || 0}%</div>
+                    </div>
+                    <div style="flex:1; background:#fff; border-radius:10px; padding:16px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.08); border-top:4px solid #7b5ea7;">
+                        <div style="font-size:11px; color:#666; margin-bottom:4px;">מספר עובדים</div>
+                        <div style="font-size:22px; font-weight:700; color:#7b5ea7;">${employees.length}</div>
+                    </div>
+                </div>
+
+                <!-- Table section -->
+                <div style="padding:20px 36px 10px; background:#f0f4f9;">
+                    <div style="font-size:14px; font-weight:700; color:#1a3558; margin-bottom:10px; border-right:4px solid #2b4c7e; padding-right:10px;">פירוט עובדים וקידום</div>
+                    <div style="overflow:hidden; border-radius:10px; box-shadow:0 2px 12px rgba(0,0,0,0.1);">
+                        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                            <thead>
+                                <tr>
+                                    <th style="background:#1a3558;color:#fff;padding:10px 6px;text-align:center;border-left:1px solid #2b5080;">#</th>
+                                    <th style="background:#1a3558;color:#fff;padding:10px 10px;text-align:right;border-left:1px solid #2b5080;">שם עובד</th>
+                                    <th style="background:#1a3558;color:#fff;padding:10px 6px;text-align:center;border-left:1px solid #2b5080;">ת.ז.</th>
+                                    <th style="background:#1a3558;color:#fff;padding:10px 6px;text-align:center;border-left:1px solid #2b5080;">משכורת</th>
+                                    ${critHeaders}
+                                    <th style="background:#2b4c7e;color:#fff;padding:10px 6px;text-align:center;border-left:1px solid #3a5d9a;font-size:11px;">ציון<br>משוקלל</th>
+                                    <th style="background:#2b4c7e;color:#fff;padding:10px 6px;text-align:center;border-left:1px solid #3a5d9a;font-size:11px;">אחוז<br>ראשוני</th>
+                                    <th style="background:#2b4c7e;color:#fff;padding:10px 6px;text-align:center;border-left:1px solid #3a5d9a;font-size:11px;">אחוז<br>מופחת</th>
+                                    <th style="background:#1a7a4a;color:#fff;padding:10px 6px;text-align:center;font-size:11px;">סכום<br>בפועל</th>
+                                </tr>
+                            </thead>
+                            <tbody>${empRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Table section (page 1) -->
+                <div id="pdf-page1">
+                </div>
+
+                <!-- Legend + footer -->
+                <div style="padding:16px 36px 24px; background:#f0f4f9; display:flex; gap:20px; align-items:flex-start;">
+                    <div style="flex:1; background:#fff; border-radius:8px; padding:14px 18px; font-size:12px; color:#444; box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+                        <div style="font-weight:700; color:#1a3558; margin-bottom:8px;">הסבר מדדי הערכה:</div>
+                        ${critLegend}
+                    </div>
+                    <div style="background:#fff; border-radius:8px; padding:14px 18px; font-size:11px; color:#888; box-shadow:0 1px 4px rgba(0,0,0,0.07); text-align:center;">
+                        <div style="color:#2b4c7e; font-weight:600; font-size:12px; margin-bottom:4px;">נוסחת האוצר</div>
+                        <div>תקציב = (A+B+C) × E</div>
+                        <div style="margin-top:4px;">E = D ÷ C_factor</div>
+                        <div style="margin-top:8px; color:#aaa; font-size:10px;">© צביה וינברג, רו"ח &nbsp;|&nbsp; simulatorta@gmail.com</div>
+                    </div>
+                </div>
+            </div>
+            <!-- Charts rendered separately as page 2 -->
+            <div id="pdf-charts-page" style="font-family:Arial,sans-serif; direction:rtl; background:#f0f4f9; width:1100px; padding:0;">
+                <!-- Branding bar -->
+                <div style="background:#fff; border-bottom:1px solid #e0e7ef; padding:8px 36px; display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+                    <span style="font-size:13px; color:#2b4c7e; font-weight:700;">צביה וינברג, רו"ח</span>
+                    <span style="color:#c0cad8;">|</span>
+                    <span style="font-size:12px; color:#7a8fa6;">simulatorta@gmail.com</span>
+                </div>
+                <div style="padding:24px 36px;">
+                    ${chartImgHtml}
+                </div>
+            </div>`;
+
+            // Inject into DOM, render, then remove
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'position:fixed;top:-9999px;left:-9999px;z-index:-1;';
+            wrapper.innerHTML = html;
+            document.body.appendChild(wrapper);
+
+            try {
+                showAlert('info', '⏳ מכין PDF...');
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const pdfW = pdf.internal.pageSize.getWidth();
+                const pdfH = pdf.internal.pageSize.getHeight();
+
+                // Helper: render a div to PDF pages
+                const addDivToPdf = async (el, isFirst) => {
+                    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#f0f4f9', logging: false });
+                    const imgData = canvas.toDataURL('image/png');
+                    const ratio = canvas.width / canvas.height;
+                    const imgW = pdfW;
+                    const imgH = imgW / ratio;
+                    if (!isFirst) pdf.addPage();
+                    if (imgH <= pdfH) {
+                        pdf.addImage(imgData, 'PNG', 0, 0, imgW, imgH);
+                    } else {
+                        let srcY = 0, remaining = canvas.height;
+                        let firstSlice = true;
+                        while (remaining > 0) {
+                            const sliceH = Math.min(canvas.height * (pdfH / imgH), remaining);
+                            const sc = document.createElement('canvas');
+                            sc.width = canvas.width; sc.height = sliceH;
+                            sc.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+                            if (!firstSlice) pdf.addPage();
+                            pdf.addImage(sc.toDataURL('image/png'), 'PNG', 0, 0, imgW, pdfH);
+                            srcY += sliceH; remaining -= sliceH; firstSlice = false;
+                        }
+                    }
+                };
+
+                // Page 1: main content
+                await addDivToPdf(wrapper.querySelector('#pdf-content'), true);
+
+                // Page 2: charts (only if charts exist)
+                const chartsPage = wrapper.querySelector('#pdf-charts-page');
+                if (chartsPage && chartImgHtml) {
+                    await addDivToPdf(chartsPage, false);
+                }
+
+                const safeOrg = (orgName || 'org').replace(/[^a-zA-Z0-9א-ת\-_]/g, '_');
+                const fileName = `promotion_budget_${safeOrg}_${budgetYear || new Date().getFullYear()}.pdf`;
+                pdf.save(fileName);
+                showAlert('success', '✓ קובץ PDF הורד בהצלחה!');
+            } catch (err) {
+                showAlert('error', 'שגיאה ביצירת PDF: ' + err.message);
+            } finally {
+                document.body.removeChild(wrapper);
+            }
+        }
+        async function exportToExcel() {
+            const results = calculateResults();
+            
+            showAlert('info', '⏳ מכין קובץ Excel מעוצב...');
+
+            // Colors matching PDF design
+            const CLR = {
+                darkBlue:  '1A3558',
+                midBlue:   '2B4C7E',
+                lightBlue: 'DDEAF7',
+                green:     '1A7A4A',
+                lightGreen:'E8F4EE',
+                orange:    'E07B39',
+                lightOrange:'FFF3E0',
+                purple:    '7B5EA7',
+                rowAlt:    'F8FAFD',
+                white:     'FFFFFF',
+                border:    'C5D5E8',
+                text:      '222222',
+                muted:     '666666',
+                totalBg:   'D4EDDA',
+            };
+
+            const wb = new ExcelJS.Workbook();
+            wb.views = [{ rightToLeft: true }];
+            const ws = wb.addWorksheet('דוח קידום עובדים', { views: [{ rightToLeft: true }] });
+
+            const totalCols = 4 + criteria.length + 4; // #, name, id, salary, criteria..., weighted, initial%, final%, amount
+
+            // Helper: style a cell
+            function styleCell(cell, opts = {}) {
+                if (opts.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + opts.fill } };
+                if (opts.font) cell.font = { name: 'Arial', size: opts.font.size || 11, bold: !!opts.font.bold, color: { argb: 'FF' + (opts.font.color || CLR.text) }, italic: !!opts.font.italic };
+                if (opts.align) cell.alignment = { horizontal: opts.align, vertical: 'middle', readingOrder: 'rtl', wrapText: !!opts.wrap };
+                if (opts.border) {
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FF' + CLR.border } },
+                        bottom: { style: 'thin', color: { argb: 'FF' + CLR.border } },
+                        left: { style: 'thin', color: { argb: 'FF' + CLR.border } },
+                        right: { style: 'thin', color: { argb: 'FF' + CLR.border } },
+                    };
+                }
+            }
+
+            // Helper: merge row full width and style
+            function addBanner(text, fillColor, fontColor, fontSize, rowH) {
+                const r = ws.addRow([text]);
+                ws.mergeCells(r.number, 1, r.number, totalCols);
+                styleCell(r.getCell(1), { fill: fillColor, font: { bold: true, size: fontSize, color: fontColor }, align: 'right' });
+                ws.getRow(r.number).height = rowH || 22;
+                return r;
+            }
+
+            // ── Row 1: Main title ──
+            addBanner('דוח תקציב קידום עובדים', CLR.darkBlue, CLR.white, 16, 36);
+
+            // ── Row 2: Org info bar ──
+            const dateStr = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' });
+            const orgLine = `${baseSettings.orgName || ''}  |  ח.פ. ${baseSettings.orgNumber || ''}  |  שנת תקציב: ${baseSettings.budgetYear || ''}  |  תאריך: ${dateStr}`;
+            addBanner(orgLine, CLR.midBlue, CLR.white, 11, 24);
+
+            // ── Row 3: Empty spacer ──
+            ws.addRow([]);
+            ws.getRow(ws.lastRow.number).height = 8;
+
+            // ── Rows 4-5: Summary cards ──
+            addBanner('סיכום תקציב', CLR.lightBlue, CLR.darkBlue, 12, 22);
+
+            const summaryRow = ws.addRow([
+                'תקציב שנתי:', results.annualBudget.toFixed(2) + ' ₪',
+                '', 'תקציב חודשי (תקרה):', results.monthlyBudget.toFixed(2) + ' ₪',
+                '', 'שיעור קידום:', (baseSettings.budgetRate || 0) + '%',
+                '', 'מספר עובדים:', employees.length
+            ]);
+            summaryRow.height = 22;
+            const summaryMeta = [
+                [1,2, CLR.midBlue, CLR.lightBlue], [4,5, CLR.green, CLR.lightGreen],
+                [7,8, CLR.orange, CLR.lightOrange], [10,11, CLR.purple, 'F3EEF9']
+            ];
+            summaryMeta.forEach(([lc, vc, color, bg]) => {
+                const lbl = summaryRow.getCell(lc);
+                const val = summaryRow.getCell(vc);
+                styleCell(lbl, { fill: bg, font: { bold: true, size: 11, color: color }, align: 'right' });
+                styleCell(val, { fill: bg, font: { bold: true, size: 13, color: color }, align: 'left' });
+            });
+            // Fill remaining cells in summary row
+            for (let c = 1; c <= totalCols; c++) {
+                const cell = summaryRow.getCell(c);
+                if (!cell.fill || !cell.fill.fgColor) {
+                    styleCell(cell, { fill: CLR.white });
+                }
+            }
+
+            // ── Row: Empty spacer ──
+            ws.addRow([]); ws.getRow(ws.lastRow.number).height = 10;
+
+            // ── Table header ──
+            addBanner('פירוט עובדים וקידום', CLR.lightBlue, CLR.darkBlue, 12, 22);
+
+            const hdrCells = ['#', 'שם עובד', 'מספר זהות', 'משכורת (₪)'];
+            criteria.forEach((c, i) => hdrCells.push(`מדד ${i+1}\n${c.name}\n(${c.weight.toFixed(0)}%)`));
+            hdrCells.push('ציון\nמשוקלל', 'אחוז\nראשוני', 'אחוז\nסופי', 'סכום בפועל\n(₪)');
+
+            const hdrRow = ws.addRow(hdrCells);
+            hdrRow.height = 48;
+            hdrRow.eachCell((cell, colNum) => {
+                const isCriteria = colNum > 4 && colNum <= 4 + criteria.length;
+                const isCalc = colNum > 4 + criteria.length && colNum < totalCols;
+                const isFinal = colNum === totalCols;
+                styleCell(cell, {
+                    fill: isFinal ? CLR.green : isCalc ? CLR.midBlue : CLR.darkBlue,
+                    font: { bold: true, size: 10, color: CLR.white },
+                    align: 'center',
+                    border: true,
+                    wrap: true
+                });
+            });
+
+            // ── Employee rows ──
+            employees.forEach((emp, i) => {
+                const rowData = [i + 1, emp.name, emp.id, parseFloat(emp.salary.toFixed(2))];
+                criteria.forEach(c => rowData.push(parseFloat((emp.scores[c.id] || 0).toFixed(1))));
+                rowData.push(parseFloat(emp.weightedScore.toFixed(2)));
+                rowData.push(parseFloat(emp.promotionPercent.toFixed(2)));
+                rowData.push(parseFloat(emp.finalPromotionPercent.toFixed(2)));
+                rowData.push(parseFloat(emp.finalPromotion.toFixed(2)));
+
+                const row = ws.addRow(rowData);
+                row.height = 22;
+                const bg = i % 2 === 0 ? CLR.rowAlt : CLR.white;
+                // Columns: weighted=5+criteria.length, initial%=6+criteria.length, final%=7+criteria.length
+                const wCol = 5 + criteria.length;
+                const iCol = 6 + criteria.length;
+                const fCol = 7 + criteria.length;
+                row.eachCell((cell, colNum) => {
+                    const isFinal = colNum === totalCols;
+                    styleCell(cell, {
+                        fill: isFinal ? CLR.lightGreen : bg,
+                        font: { size: 11, bold: isFinal, color: isFinal ? CLR.green : CLR.text },
+                        align: colNum === 2 ? 'right' : 'center',
+                        border: true
+                    });
+                    if (colNum === wCol || colNum === iCol || colNum === fCol) {
+                        cell.numFmt = '0.00"%"';
+                    }
+                });
+            });
+
+            // ── Totals row ──
+            const totalFinal = employees.reduce((sum, e) => sum + e.finalPromotion, 0);
+            const totalsData = ['', 'סה"כ', '', ''];
+            criteria.forEach(() => totalsData.push(''));
+            totalsData.push('', '', '', parseFloat(totalFinal.toFixed(2)));
+            const totRow = ws.addRow(totalsData);
+            totRow.height = 26;
+            totRow.eachCell((cell, colNum) => {
+                styleCell(cell, {
+                    fill: CLR.totalBg,
+                    font: { bold: true, size: 12, color: colNum === totalCols ? CLR.green : CLR.darkBlue },
+                    align: colNum === 2 ? 'right' : 'center',
+                    border: true
+                });
+            });
+
+            // ── Spacer + footer ──
+            ws.addRow([]); ws.getRow(ws.lastRow.number).height = 10;
+
+            // Criteria legend
+            addBanner('מדדי הערכה:', CLR.lightBlue, CLR.darkBlue, 11, 20);
+            criteria.forEach((c, i) => {
+                const r = ws.addRow([`מדד ${i+1}: ${c.name}  (משקל ${c.weight.toFixed(0)}%)`]);
+                ws.mergeCells(r.number, 1, r.number, totalCols);
+                styleCell(r.getCell(1), { fill: CLR.white, font: { size: 11 }, align: 'right' });
+                r.height = 18;
+            });
+
+            ws.addRow([]);
+            const footRow = ws.addRow(['© צביה וינברג, רו"ח  |  simulatorta@gmail.com']);
+            ws.mergeCells(footRow.number, 1, footRow.number, totalCols);
+            styleCell(footRow.getCell(1), { fill: CLR.white, font: { size: 10, italic: true, color: CLR.muted }, align: 'center' });
+            footRow.height = 20;
+
+            // ── Column widths ──
+            ws.getColumn(1).width = 5;
+            ws.getColumn(2).width = 22;
+            ws.getColumn(3).width = 14;
+            ws.getColumn(4).width = 14;
+            criteria.forEach((_, i) => { ws.getColumn(5 + i).width = 14; });
+            ws.getColumn(5 + criteria.length).width = 12;
+            ws.getColumn(6 + criteria.length).width = 12;
+            ws.getColumn(7 + criteria.length).width = 12;
+            ws.getColumn(8 + criteria.length).width = 16;
+
+            // ── Save ──
+            const buffer = await wb.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const orgName = baseSettings.orgName ? baseSettings.orgName.replace(/[^a-zA-Z0-9א-ת]/g, '_') : 'ארגון';
+            const year = baseSettings.budgetYear || new Date().getFullYear();
+            a.href = url;
+            a.download = `דוח_קידום_${orgName}_${year}.xlsx`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showAlert('success', '✓ קובץ Excel מעוצב הורד בהצלחה!');
+        }
+        function nextStep() {
+            if (currentStep === 2) {
+                renderEmployeeScores();
+            }
+            if (currentStep === 3) {
+                renderResults();
+            }
+            
+            if (currentStep < 4) {
+                currentStep++;
+                updateStepDisplay();
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                updateStepDisplay();
+                if (currentStep === 3) {
+                    validateStep3();
+                }
+            }
+        }
+
+        function updateStepDisplay() {
+            // Update progress bar
+            document.querySelectorAll('.progress-step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 === currentStep) {
+                    step.classList.add('active');
+                } else if (index + 1 < currentStep) {
+                    step.classList.add('completed');
+                }
+            });
+
+            // Update content
+            document.querySelectorAll('.step-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelector(`.step-content[data-step="${currentStep}"]`).classList.add('active');
+
+            // Re-validate step 3 button every time we land on step 3
+            if (currentStep === 3) validateStep3();
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // Reset simulator
+        // Save project to JSON file
+        function saveProject() {
+            const projectData = {
+                version: '1.0',
+                savedDate: new Date().toISOString(),
+                baseSettings: baseSettings,
+                criteria: criteria,
+                employees: employees,
+                currentStep: currentStep
+            };
+            
+            const dataStr = JSON.stringify(projectData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            const fileName = `תקציב_קידום_${baseSettings.orgName || 'פרויקט'}_${new Date().toLocaleDateString('he-IL').replace(/\./g, '-')}.json`;
+            link.download = fileName;
+            link.click();
+            
+            showAlert('success', '✓ הפרויקט נשמר בהצלחה! ניתן לטעון אותו מאוחר יותר');
+        }
+        
+        // Load project from JSON file
+        function loadProject(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const projectData = JSON.parse(e.target.result);
+                    
+                    // Validate data
+                    if (!projectData.version || !projectData.baseSettings || !projectData.criteria) {
+                        throw new Error('קובץ פגום או לא תקין');
+                    }
+                    
+                    // Restore data
+                    baseSettings = projectData.baseSettings || {};
+                    criteria = projectData.criteria || [];
+                    employees = projectData.employees || [];
+                    currentStep = projectData.currentStep || 1;
+                    
+                    // Update UI - Step 1
+                    if (baseSettings.orgName) document.getElementById('orgName').value = baseSettings.orgName;
+                    if (baseSettings.orgNumber) document.getElementById('orgNumber').value = baseSettings.orgNumber;
+                    if (baseSettings.budgetYear) document.getElementById('budgetYear').value = baseSettings.budgetYear;
+                    if (baseSettings.salaryA) document.getElementById('salaryA').value = baseSettings.salaryA;
+                    if (baseSettings.salaryB) document.getElementById('salaryB').value = baseSettings.salaryB;
+                    if (baseSettings.budgetRate) document.getElementById('budgetRate').value = baseSettings.budgetRate;
+                    
+                    // Update employee cap if exists
+                    if (baseSettings.employeeCapRate && baseSettings.employeeCapRate !== 5) {
+                        document.getElementById('employeeCapException').checked = true;
+                        document.getElementById('employeeCapField').style.display = 'block';
+                        document.getElementById('employeeCapRate').value = baseSettings.employeeCapRate;
+                    }
+                    
+                    updateCalculations();
+                    
+                    // Update UI - Step 2
+                    renderCriteria();
+                    updateWeightDisplay();
+                    
+                    // Update UI - Step 3
+                    renderEmployeeScores();
+                    renderEmployeeTable();
+                    
+                    // Re-run all validations so buttons are enabled
+                    validateStep3();
+                    if (typeof validateStep2 === 'function') validateStep2();
+
+                    // Navigate to loaded step via standard function
+                    updateStepDisplay();
+                    
+                    // If on results step, render results
+                    if (currentStep === 4) {
+                        renderResults();
+                    }
+                    
+                    showAlert('success', '✓ הפרויקט נטען בהצלחה!');
+                    
+                } catch (error) {
+                    showAlert('error', 'שגיאה בטעינת הקובץ: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input
+            event.target.value = '';
+        }
+
+        function resetSimulator() {
+            if (confirm('האם אתה בטוח שברצונך להתחיל מחדש? כל הנתונים יימחקו.')) {
+                location.reload();
+            }
+        }
+
+        // Utility functions
+        function formatNumber(num) {
+            return new Intl.NumberFormat('he-IL', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(num);
+        }
+
+        function formatCurrency(num) {
+            return '₪' + formatNumber(num);
+        }
+
+        function showAlert(type, message) {
+            // Remove existing alerts
+            document.querySelectorAll('.alert').forEach(a => a.remove());
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <span style="font-size: 1.5rem;">
+                    ${type === 'error' ? '⚠️' : type === 'success' ? '✅' : 'ℹ️'}
+                </span>
+                <span>${message}</span>
+            `;
+            
+            const content = document.querySelector('.step-content.active');
+            content.insertBefore(alert, content.firstChild);
+            
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Progress step click handlers
+        document.querySelectorAll('.progress-step').forEach((step, index) => {
+            step.addEventListener('click', () => {
+                const stepNum = index + 1;
+                if (stepNum < currentStep || (stepNum === currentStep + 1 && canProceed())) {
+                    currentStep = stepNum;
+                    updateStepDisplay();
+                }
+            });
+        });
+
+        function canProceed() {
+            if (currentStep === 1) {
+                return !document.getElementById('step1Next').disabled;
+            }
+            if (currentStep === 2) {
+                return !document.getElementById('step2Next').disabled;
+            }
+            if (currentStep === 3) {
+                return !document.getElementById('step3Next').disabled;
+            }
+            return true;
+        }
+    </script>
+</body>
+</html>
